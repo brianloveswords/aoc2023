@@ -29,7 +29,7 @@ fn parse_digit(s: &str) -> Option<char> {
     None
 }
 
-fn parse(s: &str) -> Result<u32, (&str, Option<char>)> {
+fn parse(s: &str) -> Result<u32, &str> {
     let bytes = s.as_bytes();
 
     let mut first_digit = None;
@@ -48,11 +48,12 @@ fn parse(s: &str) -> Result<u32, (&str, Option<char>)> {
             first_digit = Some(c);
             break;
         };
+
         offset += 1;
     }
 
     if offset == max {
-        return Err((s, None));
+        return Err(s);
     }
 
     let min = offset;
@@ -76,27 +77,26 @@ fn parse(s: &str) -> Result<u32, (&str, Option<char>)> {
         offset -= 1;
     }
 
-    match (first_digit, second_digit) {
-        (Some(first), Some(second)) => {
-            let value = format!("{}{}", first, second)
-                .parse::<u32>()
-                .expect("expected two digits");
-            Ok(value)
-        }
-        _ => Err((s, first_digit)),
-    }
+    let first = first_digit.expect("must have first digit");
+    let second = second_digit.unwrap_or(first);
+    let value = format!("{}{}", first, second)
+        .parse::<u32>()
+        .expect("expected two digits");
+    Ok(value)
 }
 
 fn main() {
-    const REAL_INPUT: &str = include_str!("../../inputs/examples/day1.part2.txt");
+    const REAL_INPUT: &str = include_str!("../../inputs/real/day1.txt");
 
     let mut total = 0;
 
     for line in REAL_INPUT.lines() {
         let res = parse(line);
         println!("{line} -> {res:?}");
-        if let Ok(value) = res {
-            total += value;
+
+        match res {
+            Ok(value) => total += value,
+            Err(line) => panic!("failed to parse any digits: {line}"),
         }
     }
 
