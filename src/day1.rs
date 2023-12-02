@@ -25,9 +25,6 @@ In this example, the calibration values of these four lines are 12, 38, 15, and 
 Consider your entire calibration document. What is the sum of all of the calibration values?
 */
 
-use anyhow::anyhow;
-use anyhow::Result;
-
 struct Calibration(u32);
 
 impl Calibration {
@@ -59,6 +56,49 @@ impl Calibration {
     }
 }
 
+pub struct DigitParser {
+    input: String,
+}
+
+impl DigitParser {
+    pub fn new(input: String) -> Self {
+        Self { input }
+    }
+
+    pub fn parse(&mut self) -> String {
+        // result will be at most the length of the input, but possibly shorter
+        let mut result = String::with_capacity(self.input.len());
+        let mut buffer = String::with_capacity(5);
+
+        for c in self.input.chars() {
+            if !c.is_alphabetic() {
+                result.push_str(&buffer);
+                buffer.clear();
+
+                result.push(c);
+                continue;
+            }
+            buffer.push(c);
+            buffer = replace_digit_string(&buffer);
+        }
+
+        result.push_str(&buffer);
+        result
+    }
+}
+
+fn replace_digit_string(s: &str) -> String {
+    s.replace("one", "1")
+        .replace("two", "2")
+        .replace("three", "3")
+        .replace("four", "4")
+        .replace("five", "5")
+        .replace("six", "6")
+        .replace("seven", "7")
+        .replace("eight", "8")
+        .replace("nine", "9")
+}
+
 pub fn calibrate(s: &str) -> u32 {
     let result = Calibration::parse_lines(s)
         .into_iter()
@@ -72,13 +112,43 @@ pub fn calibrate(s: &str) -> u32 {
 mod tests {
     use super::*;
 
-    const EXAMPLE_INPUT: &str = include_str!("../inputs/examples/day1.txt");
+    const EXAMPLE_INPUT_PART1: &str = include_str!("../inputs/examples/day1.part1.txt");
+    const EXAMPLE_INPUT_PART2: &str = include_str!("../inputs/examples/day1.part2.txt");
+    const REAL_INPUT: &str = include_str!("../inputs/real/day1.txt");
 
     #[test]
-    fn part1() {
-        let input = EXAMPLE_INPUT.to_string();
+    fn part1_example() {
+        let input = EXAMPLE_INPUT_PART1.to_string();
         let expected = 142;
         let result = calibrate(&input);
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn part1() {
+        let input = REAL_INPUT.to_string();
+        let result = calibrate(&input);
+        println!("{result}");
+    }
+
+    #[test]
+    fn part2_example() {
+        let input = EXAMPLE_INPUT_PART2.to_string();
+        let mut parser = DigitParser::new(input);
+        let clean = parser.parse();
+        eprintln!("{clean}");
+
+        let expected = 281;
+        let result = calibrate(&clean);
+        assert_eq!(result, expected);
+    }
+
+    fn part2() {
+        let input = REAL_INPUT.to_string();
+        let mut parser = DigitParser::new(input);
+        let clean = parser.parse();
+        eprintln!("{clean}");
+
+        calibrate(&clean);
     }
 }
