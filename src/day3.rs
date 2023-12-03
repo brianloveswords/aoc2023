@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 /*
 You and the Elf eventually reach a gondola lift station; he says the gondola lift will take you up to the water source, but this is as far as he can bring you. You go inside.
 
@@ -27,21 +29,55 @@ Here is an example engine schematic:
 In this schematic, two numbers are not part numbers because they are not adjacent to a symbol: 114 (top right) and 58 (middle right). Every other number is adjacent to a symbol and so is a part number; their sum is 4361.
 
 Of course, the actual engine schematic is much larger. What is the sum of all of the part numbers in the engine schematic?
-
 */
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+struct Range {
+    start: usize,
+    end: usize,
+}
+
+impl Range {
+    fn new(start: usize, end: usize) -> Self {
+        Self { start, end }
+    }
+
+    fn overlaps(&self, other: &Self) -> bool {
+        if other.start >= self.start && other.start < self.end {
+            return true;
+        }
+
+        if other.end < self.end && other.end > self.start {
+            return true;
+        }
+
+        return false;
+    }
+
+    fn expand(&self, n: usize) -> Self {
+        Self {
+            start: self.start - n,
+            end: self.end + n,
+        }
+    }
+
+    fn is_adjacent(&self, other: &Self) -> bool {
+        let expanded = self.expand(1);
+        expanded.overlaps(other)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 enum Token {
     Number {
-        number: u32,
+        number: usize,
         line: usize,
-        start: usize,
-        end: usize,
+        range: Range,
     },
     Symbol {
         symbol: char,
         line: usize,
-        position: usize,
+        range: Range,
     },
 }
 
@@ -51,6 +87,49 @@ impl Token {
             Token::Number { line, .. } => *line,
             Token::Symbol { line, .. } => *line,
         }
+    }
+
+    fn get_number(&self) -> Option<usize> {
+        match self {
+            Token::Number { number, .. } => Some(*number),
+            _ => None,
+        }
+    }
+
+    fn range(&self) -> Range {
+        match self {
+            Token::Number { range, .. } => *range,
+            Token::Symbol { range, .. } => *range,
+        }
+    }
+
+    fn is_symbol(&self) -> bool {
+        match self {
+            Token::Symbol { .. } => true,
+            _ => false,
+        }
+    }
+
+    fn is_number(&self) -> bool {
+        match self {
+            Token::Number { .. } => true,
+            _ => false,
+        }
+    }
+
+    fn is_adjacent(&self, other: &Self) -> bool {
+        // check if it's the same line, or one above, or one below
+        let this_line = self.line();
+        let other_line = other.line();
+
+        if other_line != this_line && other_line + 1 != this_line && other_line - 1 != this_line {
+            eprintln!("lines don't match: this: {this_line}, other: {other_line}");
+            return false;
+        }
+
+        let this_range = self.range();
+        let other_range = other.range();
+        this_range.is_adjacent(&other_range)
     }
 }
 
@@ -118,31 +197,31 @@ impl<'a> SchematicParser<'a> {
 
         // try to parse a number
         if let Some(number) = self.next_while(|c| c.is_digit(10)) {
-            let end_column = self.column;
             let number = number
                 .parse()
                 .expect("filtered for digits, should have a number");
+            let range = Range::new(start_column, self.column);
             return Some(Token::Number {
                 number,
                 line,
-                start: start_column,
-                end: end_column,
+                range,
             });
         }
 
         // everything else is a symbol
         let symbol = self.next()?;
+        let range = Range::new(start_column, self.column);
         Some(Token::Symbol {
             symbol,
             line,
-            position: start_column,
+            range,
         })
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use super::*;
 
@@ -156,8 +235,7 @@ mod test {
             Some(Token::Number {
                 number: 467,
                 line: 1,
-                start: 1,
-                end: 4,
+                range: Range::new(1, 4),
             })
         );
 
@@ -167,8 +245,7 @@ mod test {
             Some(Token::Number {
                 number: 114,
                 line: 1,
-                start: 6,
-                end: 9,
+                range: Range::new(6, 9),
             })
         );
 
@@ -178,7 +255,7 @@ mod test {
             Some(Token::Symbol {
                 symbol: '&',
                 line: 2,
-                position: 1,
+                range: Range::new(1, 2),
             })
         );
 
@@ -188,23 +265,76 @@ mod test {
             Some(Token::Number {
                 number: 35,
                 line: 2,
-                start: 4,
-                end: 6,
+                range: Range::new(4, 6),
             })
         );
     }
 
     #[test]
-    fn test_find_neighbors() {
-        let lines = "467..114..\n&..35..633";
+    fn test_is_adjacent() {
+        let lines = ".1.\n*..";
         let mut parser = SchematicParser::new(lines);
-        let mut line_map: BTreeMap<usize, Vec<Token>> = BTreeMap::new();
+        let number = parser.parse_token().unwrap();
+        assert_eq!(number.is_number(), true);
+
+        let symbol = parser.parse_token().unwrap();
+        assert_eq!(symbol.is_symbol(), true);
+
+        let adjacent = number.is_adjacent(&symbol);
+        assert_eq!(adjacent, true);
+    }
+
+    #[test]
+    fn test_find_neighbors() {
+        let lines = include_str!("../inputs/examples/day3.txt");
+        let mut parser = SchematicParser::new(lines);
+        let mut number_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
+        let mut symbol_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
 
         while let Some(token) = parser.parse_token() {
-            let line = line_map.entry(token.line()).or_default();
+            let token_line = token.line();
+            let map = match token {
+                Token::Number { .. } => &mut number_map,
+                Token::Symbol { .. } => &mut symbol_map,
+            };
+
+            let line = map.entry(token_line).or_default();
             line.push(token);
         }
 
-        println!("{:#?}", line_map);
+        let mut found_numbers = BTreeSet::new();
+
+        for (line, symbols) in symbol_map {
+            let above = number_map.get(&(line - 1));
+            let below = number_map.get(&(line + 1));
+            let same = number_map.get(&line);
+
+            let mut all: Vec<Token> = vec![];
+            if let Some(above) = above {
+                all.extend(above);
+            }
+            if let Some(below) = below {
+                all.extend(below);
+            }
+            if let Some(same) = same {
+                all.extend(same);
+            }
+
+            for symbol in symbols {
+                for number in all.iter() {
+                    if symbol.is_adjacent(number) {
+                        found_numbers.insert(*number);
+                    }
+                }
+            }
+        }
+
+        println!("found numbers: {:?}", found_numbers);
+        let total = found_numbers
+            .iter()
+            .map(|num| num.get_number().expect("should be a number"))
+            .sum::<usize>();
+
+        assert_eq!(total, 4361);
     }
 }
