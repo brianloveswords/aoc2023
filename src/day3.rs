@@ -264,23 +264,21 @@ fn part2(s: &str) -> usize {
         }
 
         for symbol in symbols {
-            let mut parts = vec![];
-
-            for part in all.iter() {
-                if symbol.is_adjacent(part) {
-                    parts.push(*part);
-                }
-            }
+            let parts = all
+                .iter()
+                .filter(|part| symbol.is_adjacent(part))
+                .collect::<Vec<_>>();
 
             if parts.len() != 2 {
-                eprintln!("symbol {symbol:?}: not a gear, expected 2 parts, found {parts:?}");
+                // eprintln!("symbol {symbol:?}: not a gear, expected 2 parts, found {parts:?}");
                 continue;
             }
 
-            let ratio1 = parts[0].get_part_number().expect("should be a part");
-            let ratio2 = parts[1].get_part_number().expect("should be a part");
+            let ratio = parts
+                .iter()
+                .map(|part| part.get_part_number().expect("should be a part"))
+                .product::<usize>();
 
-            let ratio = ratio1 * ratio2;
             total_ratio += ratio;
         }
     }
@@ -423,5 +421,12 @@ mod test {
         let input = include_str!("../inputs/examples/day3.txt");
         let total = part2(input);
         assert_eq!(total, 467835);
+    }
+
+    #[test]
+    fn test_part2_real() {
+        let input = include_str!("../inputs/real/day3.txt");
+        let total = part2(input);
+        println!("part2: {}", total);
     }
 }
