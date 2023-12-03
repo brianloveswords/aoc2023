@@ -23,6 +23,12 @@ impl Game {
         Ok(Game { game_id, rounds })
     }
 
+    fn power(&self) -> u32 {
+        let mut power = 0;
+        let max = self.max_possible_pulls();
+        max.red as u32 * max.green as u32 * max.blue as u32
+    }
+
     fn max_possible_pulls(&self) -> Round {
         self.rounds
             .iter()
@@ -126,7 +132,25 @@ impl Pull {
 }
 
 fn main() {
-    part1();
+    part2();
+}
+
+fn part2() {
+    let input = include_str!("../../inputs/real/day2.txt");
+
+    let mut total: u32 = 0;
+    for line in input.lines() {
+        let game = Game::parse(line).expect("invalid game");
+        let max = game.max_possible_pulls();
+        let power = game.power();
+
+        println!("game: {game:?}");
+        println!("max: {max:?}");
+        println!("power: {power}");
+
+        total += power;
+    }
+    println!("total: {total}");
 }
 
 fn part1() {
