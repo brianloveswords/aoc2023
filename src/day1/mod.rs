@@ -85,8 +85,8 @@ fn parse(s: &str) -> Result<u32, &str> {
     Ok(value)
 }
 
-pub fn part_2() {
-    const REAL_INPUT: &str = include_str!("../inputs/real/day1.txt");
+pub fn part2() {
+    const REAL_INPUT: &str = include_str!("../../inputs/real/day1.txt");
 
     let mut total = 0;
 
