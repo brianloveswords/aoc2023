@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use std::collections::{BTreeMap, BTreeSet};
+
 /*
 You and the Elf eventually reach a gondola lift station; he says the gondola lift will take you up to the water source, but this is as far as he can bring you. You go inside.
 
@@ -69,7 +71,7 @@ impl Range {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 enum Token {
-    Number {
+    Part {
         number: usize,
         line: usize,
         range: Range,
@@ -84,21 +86,21 @@ enum Token {
 impl Token {
     fn line(&self) -> usize {
         match self {
-            Token::Number { line, .. } => *line,
+            Token::Part { line, .. } => *line,
             Token::Symbol { line, .. } => *line,
         }
     }
 
-    fn get_number(&self) -> Option<usize> {
+    fn get_part_number(&self) -> Option<usize> {
         match self {
-            Token::Number { number, .. } => Some(*number),
+            Token::Part { number, .. } => Some(*number),
             _ => None,
         }
     }
 
     fn range(&self) -> Range {
         match self {
-            Token::Number { range, .. } => *range,
+            Token::Part { range, .. } => *range,
             Token::Symbol { range, .. } => *range,
         }
     }
@@ -110,9 +112,16 @@ impl Token {
         }
     }
 
-    fn is_number(&self) -> bool {
+    fn is_possible_gear(&self) -> bool {
         match self {
-            Token::Number { .. } => true,
+            Token::Symbol { symbol, .. } => *symbol == '*',
+            _ => false,
+        }
+    }
+
+    fn is_part(&self) -> bool {
+        match self {
+            Token::Part { .. } => true,
             _ => false,
         }
     }
@@ -189,7 +198,7 @@ impl<'a> SchematicParser<'a> {
 
     fn parse_token(&mut self) -> Option<Token> {
         // drop whitespace
-        self.next_while(|c| c == '.' || c == '\n');
+        self.next_while(|c| c == '.' || c.is_whitespace());
 
         // keep track of starting position. we won't cross a line boundary.
         let line = self.line;
@@ -201,7 +210,7 @@ impl<'a> SchematicParser<'a> {
                 .parse()
                 .expect("filtered for digits, should have a number");
             let range = Range::new(start_column, self.column);
-            return Some(Token::Number {
+            return Some(Token::Part {
                 number,
                 line,
                 range,
@@ -219,9 +228,120 @@ impl<'a> SchematicParser<'a> {
     }
 }
 
+fn part2(s: &str) -> usize {
+    let mut parser = SchematicParser::new(s);
+    let mut part_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
+    let mut gear_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
+
+    while let Some(token) = parser.parse_token() {
+        let token_line = token.line();
+        let map = match token {
+            Token::Part { .. } => &mut part_map,
+            t @ Token::Symbol { .. } if t.is_possible_gear() => &mut gear_map,
+            Token::Symbol { .. } => continue,
+        };
+
+        let line = map.entry(token_line).or_default();
+        line.push(token);
+    }
+
+    let mut total_ratio = 0;
+
+    for (line, symbols) in gear_map {
+        let above = part_map.get(&(line - 1));
+        let below = part_map.get(&(line + 1));
+        let same = part_map.get(&line);
+
+        let mut all = vec![];
+        if let Some(above) = above {
+            all.extend(above);
+        }
+        if let Some(below) = below {
+            all.extend(below);
+        }
+        if let Some(same) = same {
+            all.extend(same);
+        }
+
+        for symbol in symbols {
+            let mut parts = vec![];
+
+            for part in all.iter() {
+                if symbol.is_adjacent(part) {
+                    parts.push(*part);
+                }
+            }
+
+            if parts.len() != 2 {
+                eprintln!("symbol {symbol:?}: not a gear, expected 2 parts, found {parts:?}");
+                continue;
+            }
+
+            let ratio1 = parts[0].get_part_number().expect("should be a part");
+            let ratio2 = parts[1].get_part_number().expect("should be a part");
+
+            let ratio = ratio1 * ratio2;
+            total_ratio += ratio;
+        }
+    }
+
+    total_ratio
+}
+
+fn part1(input: &str) -> usize {
+    let mut parser = SchematicParser::new(input);
+    let mut part_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
+    let mut gear_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
+
+    while let Some(token) = parser.parse_token() {
+        let token_line = token.line();
+        let map = match token {
+            Token::Part { .. } => &mut part_map,
+            Token::Symbol { .. } => &mut gear_map,
+        };
+
+        let line = map.entry(token_line).or_default();
+        line.push(token);
+    }
+
+    let mut found_parts = BTreeSet::new();
+
+    for (line, symbols) in gear_map {
+        let above = part_map.get(&(line - 1));
+        let below = part_map.get(&(line + 1));
+        let same = part_map.get(&line);
+
+        let mut all = vec![];
+        if let Some(above) = above {
+            all.extend(above);
+        }
+        if let Some(below) = below {
+            all.extend(below);
+        }
+        if let Some(same) = same {
+            all.extend(same);
+        }
+
+        for symbol in symbols {
+            for number in all.iter() {
+                if symbol.is_adjacent(number) {
+                    found_parts.insert(*number);
+                }
+            }
+        }
+    }
+
+    // println!("found numbers: {:?}", found_numbers);
+    let total = found_parts
+        .iter()
+        .map(|num| num.get_part_number().expect("should be a number"))
+        .sum::<usize>();
+
+    total
+}
+
 #[cfg(test)]
 mod test {
-    use std::collections::{BTreeMap, BTreeSet};
 
     use super::*;
 
@@ -232,7 +352,7 @@ mod test {
         let token = parser.parse_token();
         assert_eq!(
             token,
-            Some(Token::Number {
+            Some(Token::Part {
                 number: 467,
                 line: 1,
                 range: Range::new(1, 4),
@@ -242,7 +362,7 @@ mod test {
         let token = parser.parse_token();
         assert_eq!(
             token,
-            Some(Token::Number {
+            Some(Token::Part {
                 number: 114,
                 line: 1,
                 range: Range::new(6, 9),
@@ -262,7 +382,7 @@ mod test {
         let token = parser.parse_token();
         assert_eq!(
             token,
-            Some(Token::Number {
+            Some(Token::Part {
                 number: 35,
                 line: 2,
                 range: Range::new(4, 6),
@@ -275,7 +395,7 @@ mod test {
         let lines = ".1.\n*..";
         let mut parser = SchematicParser::new(lines);
         let number = parser.parse_token().unwrap();
-        assert_eq!(number.is_number(), true);
+        assert_eq!(number.is_part(), true);
 
         let symbol = parser.parse_token().unwrap();
         assert_eq!(symbol.is_symbol(), true);
@@ -285,56 +405,23 @@ mod test {
     }
 
     #[test]
-    fn test_find_neighbors() {
-        let lines = include_str!("../inputs/examples/day3.txt");
-        let mut parser = SchematicParser::new(lines);
-        let mut number_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
-        let mut symbol_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
-
-        while let Some(token) = parser.parse_token() {
-            let token_line = token.line();
-            let map = match token {
-                Token::Number { .. } => &mut number_map,
-                Token::Symbol { .. } => &mut symbol_map,
-            };
-
-            let line = map.entry(token_line).or_default();
-            line.push(token);
-        }
-
-        let mut found_numbers = BTreeSet::new();
-
-        for (line, symbols) in symbol_map {
-            let above = number_map.get(&(line - 1));
-            let below = number_map.get(&(line + 1));
-            let same = number_map.get(&line);
-
-            let mut all: Vec<Token> = vec![];
-            if let Some(above) = above {
-                all.extend(above);
-            }
-            if let Some(below) = below {
-                all.extend(below);
-            }
-            if let Some(same) = same {
-                all.extend(same);
-            }
-
-            for symbol in symbols {
-                for number in all.iter() {
-                    if symbol.is_adjacent(number) {
-                        found_numbers.insert(*number);
-                    }
-                }
-            }
-        }
-
-        println!("found numbers: {:?}", found_numbers);
-        let total = found_numbers
-            .iter()
-            .map(|num| num.get_number().expect("should be a number"))
-            .sum::<usize>();
-
+    fn test_part1_example() {
+        let input = include_str!("../inputs/examples/day3.txt");
+        let total = part1(input);
         assert_eq!(total, 4361);
+    }
+
+    #[test]
+    fn test_part1_real() {
+        let input = include_str!("../inputs/real/day3.txt");
+        let total = part1(input);
+        println!("part1: {}", total);
+    }
+
+    #[test]
+    fn test_part2_example() {
+        let input = include_str!("../inputs/examples/day3.txt");
+        let total = part2(input);
+        assert_eq!(total, 467835);
     }
 }
