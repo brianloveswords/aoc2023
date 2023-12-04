@@ -62,18 +62,33 @@ impl Token {
         }
     }
 
+    /// Returns true if the `other` token is adjacent to this token.
+    ///
+    /// In the example below, all the `*` would be considered adjacent to `11.
+    ///
+    /// ```txt
+    /// ......
+    /// .****.
+    /// .*11*.
+    /// .****.
+    /// ......
+    /// ```
+    ///
     fn is_adjacent(&self, other: &Self) -> bool {
+        self.is_adjacent_y_axis(other) && self.is_adjacent_x_axis(other)
+    }
+
+    fn is_adjacent_y_axis(&self, other: &Self) -> bool {
         let this_line = self.line();
+        (this_line - 1..=this_line + 1).contains(&other.line())
+    }
 
-        if !(this_line - 1..=this_line + 1).contains(&other.line()) {
-            return false;
-        }
-
+    fn is_adjacent_x_axis(&self, other: &Self) -> bool {
         self.range().is_adjacent(&other.range())
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct SchematicParser<'a> {
     input: &'a str,
     bytes: &'a [u8],
@@ -162,7 +177,7 @@ impl<'a> SchematicParser<'a> {
 }
 
 /// LineTokenMap is a map of line numbers to tokens on that line
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq)]
 struct LineTokenMap(BTreeMap<usize, Vec<Token>>);
 
 impl LineTokenMap {
@@ -210,17 +225,14 @@ pub fn part1(input: &str) -> u32 {
     // fast lookup by line number is also beneficial for us because we only need
     // to look at neighboring lines to determine gear adjacency.
 
-    let mut part_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
-    let mut gear_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
+    let mut part_map = LineTokenMap::new();
+    let mut symbol_map = LineTokenMap::new();
     while let Some(token) = parser.parse_token() {
-        let token_line = token.line();
         let map = match token {
             Token::Part { .. } => &mut part_map,
-            Token::Symbol { .. } => &mut gear_map,
+            Token::Symbol { .. } => &mut symbol_map,
         };
-
-        let line = map.entry(token_line).or_default();
-        line.push(token);
+        map.insert(token);
     }
 
     // with an engine schematic like the following:
@@ -231,12 +243,12 @@ pub fn part1(input: &str) -> u32 {
     // count each part once, so we'll use a set to track parts.
 
     let mut adjacent_parts: HashSet<Token> = HashSet::new();
-    for (line, symbols) in gear_map {
+    for (line, symbols) in symbol_map {
         let is_adjacent = |t: &&Token| symbols.iter().any(|s| s.is_adjacent(t));
         let surrounding_lines = line - 1..=line + 1;
 
         let adjacent = surrounding_lines
-            .filter_map(|l| part_map.get(&l))
+            .filter_map(|l| part_map.get(l))
             .flatten()
             .filter(is_adjacent);
 
