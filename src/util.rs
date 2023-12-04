@@ -54,9 +54,9 @@ impl Range {
 
     #[allow(dead_code)]
     fn is_overlapping_sizes(&self, other: &Self) -> bool {
-        // get the sizes of the independent ranges, then collapse
-        // the range using (min, max) of the pair. if the size is less
-        // than the sum of the sizes, then there is overlap.
+        // get the sizes of the independent ranges, then collapse the
+        // range using (min, max) of the pair. if the collapsed size is
+        // less than the sum of the independent sizes, there is overlap.
 
         let a = (self.end - self.start) as u64;
         let b = (other.end - other.start) as u64;
