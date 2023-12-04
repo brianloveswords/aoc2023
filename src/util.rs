@@ -18,6 +18,27 @@ impl Range {
         Self { start, end }
     }
 
+    pub fn is_overlapping(&self, other: &Self) -> bool {
+        self.is_overlapping_sizes(other)
+    }
+
+    #[allow(dead_code)]
+    fn is_overlapping_bounds(&self, other: &Self) -> bool {
+        // .xxx.
+        // xx...
+        let is_prefix = other.start <= self.start && other.end > self.start;
+
+        // .xxx.
+        // ...xx
+        let is_suffix = other.start < self.end && other.end >= self.end;
+
+        // .xxx.
+        // ..x..
+        let is_contained = other.start >= self.start && other.end <= self.end;
+
+        is_prefix || is_suffix || is_contained
+    }
+
     /// Returns true if the given range overlaps with this range.
     ///
     /// # Examples
@@ -31,26 +52,21 @@ impl Range {
     /// assert!(a.is_overlapping(&b));
     /// assert!(!a.is_overlapping(&c)); // touching is not overlapping
     /// ```
-    pub fn is_overlapping(&self, other: &Self) -> bool {
+    #[allow(dead_code)]
+    fn is_overlapping_sizes(&self, other: &Self) -> bool {
         // get the sizes of the independent ranges, then collapse
         // the range using (min, max) of the pair. if the size is less
         // than the sum of the sizes, then there is overlap.
 
-        let a = self.size();
-        let b = other.size();
-        let c = self.combine(&other).size();
+        let a = (self.end - self.start) as u64;
+        let b = (other.end - other.start) as u64;
+        let c = {
+            let min = self.start.min(other.start);
+            let max = self.end.max(other.end);
+            (max - min) as u64
+        };
 
         c < a + b
-    }
-
-    fn size(&self) -> u64 {
-        (self.end - self.start) as u64
-    }
-
-    fn combine(&self, other: &Self) -> Self {
-        let start = self.start.min(other.start);
-        let end = self.end.max(other.end);
-        Self::new(start, end)
     }
 
     /// Returns true if the given range is adjacent to this range.
@@ -101,9 +117,13 @@ mod tests {
         fn is_overlapping_commutative(a in gen_range(), b in gen_range()) {
             assert_eq!(a.is_overlapping(&b), b.is_overlapping(&a));
         }
-    }
 
-    proptest! {
+        #[test]
+        fn is_overlapping_oracle_test(a in gen_range(), b in gen_range()) {
+            assert_eq!(a.is_overlapping_bounds(&b), a.is_overlapping_sizes(&b));
+            assert_eq!(b.is_overlapping_bounds(&a), b.is_overlapping_sizes(&a));
+        }
+
         #[test]
         fn is_adjacent_commutative(a in gen_range(), b in gen_range()) {
             assert_eq!(a.is_adjacent(&b), b.is_adjacent(&a));

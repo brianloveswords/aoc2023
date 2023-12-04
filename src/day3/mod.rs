@@ -1,6 +1,95 @@
 use crate::util::Range;
 use std::collections::{BTreeMap, HashSet};
 
+pub const EXAMPLE: &str = include_str!("../../inputs/examples/day3.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day3.txt");
+
+pub fn part1(input: &str) -> u32 {
+    let mut parser = SchematicParser::new(input);
+
+    // since we only need to for adjacency between gears and parts, not all
+    // tokens, we can skip some work later by tracking them separately up front.
+    //
+    // fast lookup by line number is also beneficial for us because we only need
+    // to look at neighboring lines to determine gear adjacency.
+
+    let mut part_map = LineTokenMap::new();
+    let mut symbol_map = LineTokenMap::new();
+    while let Some(token) = parser.parse_token() {
+        let map = match token {
+            Token::Part { .. } => &mut part_map,
+            Token::Symbol { .. } => &mut symbol_map,
+        };
+        map.insert(token);
+    }
+
+    // with an engine schematic like the following:
+    //
+    // *11*
+    //
+    // we'd end up finding `11` twice, once for each symbol. we only want to
+    // count each part once, so we'll use a HashSet to track parts.
+
+    let mut adjacent_parts: HashSet<Token> = HashSet::new();
+    for (line, symbols) in symbol_map {
+        let is_adjacent = |t: &&Token| symbols.iter().any(|s| s.is_adjacent(t));
+        let surrounding_lines = line - 1..=line + 1;
+
+        let adjacent = surrounding_lines
+            .filter_map(|l| part_map.get(l))
+            .flatten()
+            .filter(is_adjacent);
+
+        adjacent_parts.extend(adjacent);
+    }
+
+    adjacent_parts
+        .iter()
+        .map(|p| p.try_part_number().unwrap())
+        .sum()
+}
+
+pub fn part2(s: &str) -> u32 {
+    let mut parser = SchematicParser::new(s);
+
+    // similar to part 1, but we can save even more work by only tracking
+    // the gears instead of all the symbols. we still need to track all parts.
+    let mut part_map = LineTokenMap::new();
+    let mut gear_map = LineTokenMap::new();
+    while let Some(token) = parser.parse_token() {
+        let map = match token {
+            t if t.is_part() => &mut part_map,
+            t if t.is_possible_gear() => &mut gear_map,
+            _ => continue,
+        };
+        map.insert(token);
+    }
+
+    let mut total_ratio = 0;
+    for (line, gears) in gear_map {
+        let nearby = part_map.nearby_tokens(line);
+
+        // spec requires us to have exactly two parts attached to a gear,
+        // so we bail early if we find anything different.
+        for gear in gears {
+            let adjacent = nearby
+                .iter()
+                .filter(|p| gear.is_adjacent(p))
+                .map(|p| p.try_part_number())
+                .collect::<Result<Vec<_>, String>>()
+                .expect("should only be parts in the part_map");
+
+            if adjacent.len() != 2 {
+                continue;
+            }
+
+            total_ratio += adjacent[0] * adjacent[1];
+        }
+    }
+
+    total_ratio
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 enum Token {
     /// Represents a part number in the engine schematic, e.g. `312`
@@ -64,12 +153,12 @@ impl Token {
 
     /// Returns true if the `other` token is adjacent to this token.
     ///
-    /// In the example below, all the `*` would be considered adjacent to `11.
+    /// In the example below, all the `*` would be considered adjacent to `77`.
     ///
     /// ```txt
     /// ......
     /// .****.
-    /// .*11*.
+    /// .*77*.
     /// .****.
     /// ......
     /// ```
@@ -216,95 +305,8 @@ impl IntoIterator for LineTokenMap {
     }
 }
 
-pub fn part1(input: &str) -> u32 {
-    let mut parser = SchematicParser::new(input);
-
-    // since we only need to for adjacency between gears and parts, not all
-    // tokens, we can skip some work later by tracking them separately up front.
-    //
-    // fast lookup by line number is also beneficial for us because we only need
-    // to look at neighboring lines to determine gear adjacency.
-
-    let mut part_map = LineTokenMap::new();
-    let mut symbol_map = LineTokenMap::new();
-    while let Some(token) = parser.parse_token() {
-        let map = match token {
-            Token::Part { .. } => &mut part_map,
-            Token::Symbol { .. } => &mut symbol_map,
-        };
-        map.insert(token);
-    }
-
-    // with an engine schematic like the following:
-    //
-    // *11*
-    //
-    // we'd end up finding `11` twice, once for each symbol. we only want to
-    // count each part once, so we'll use a set to track parts.
-
-    let mut adjacent_parts: HashSet<Token> = HashSet::new();
-    for (line, symbols) in symbol_map {
-        let is_adjacent = |t: &&Token| symbols.iter().any(|s| s.is_adjacent(t));
-        let surrounding_lines = line - 1..=line + 1;
-
-        let adjacent = surrounding_lines
-            .filter_map(|l| part_map.get(l))
-            .flatten()
-            .filter(is_adjacent);
-
-        adjacent_parts.extend(adjacent);
-    }
-
-    adjacent_parts
-        .iter()
-        .map(|p| p.try_part_number().unwrap())
-        .sum()
-}
-
-pub fn part2(s: &str) -> u32 {
-    let mut parser = SchematicParser::new(s);
-
-    // similar to part 1, but we can save even more work by only tracking
-    // the gears instead of all the symbols. we still need to track all parts.
-    let mut part_map = LineTokenMap::new();
-    let mut gear_map = LineTokenMap::new();
-    while let Some(token) = parser.parse_token() {
-        let map = match token {
-            t if t.is_part() => &mut part_map,
-            t if t.is_possible_gear() => &mut gear_map,
-            _ => continue,
-        };
-        map.insert(token);
-    }
-
-    let mut total_ratio = 0;
-    for (line, gears) in gear_map {
-        let nearby = part_map.nearby_tokens(line);
-
-        // spec requires us to have exactly two parts attached to a gear,
-        // so we bail early if we find anything different.
-        for gear in gears {
-            let adjacent = nearby
-                .iter()
-                .filter(|p| gear.is_adjacent(p))
-                .map(|p| p.try_part_number())
-                .collect::<Result<Vec<_>, String>>()
-                .expect("should only be parts in the part_map");
-
-            if adjacent.len() != 2 {
-                continue;
-            }
-
-            total_ratio += adjacent.iter().product::<u32>();
-        }
-    }
-
-    total_ratio
-}
-
 #[cfg(test)]
 mod test {
-
     use super::*;
 
     #[test]
@@ -369,29 +371,25 @@ mod test {
 
     #[test]
     fn test_part1_example() {
-        let input = include_str!("../../inputs/examples/day3.txt");
-        let total = part1(input);
+        let total = part1(EXAMPLE);
         assert_eq!(total, 4361);
     }
 
     #[test]
     fn test_part1_real() {
-        let input = include_str!("../../inputs/real/day3.txt");
-        let total = part1(input);
+        let total = part1(REAL);
         println!("part1: {}", total);
     }
 
     #[test]
     fn test_part2_example() {
-        let input = include_str!("../../inputs/examples/day3.txt");
-        let total = part2(input);
+        let total = part2(EXAMPLE);
         assert_eq!(total, 467835);
     }
 
     #[test]
     fn test_part2_real() {
-        let input = include_str!("../../inputs/real/day3.txt");
-        let total = part2(input);
+        let total = part2(REAL);
         println!("part2: {}", total);
         assert_eq!(total, 81166799);
     }

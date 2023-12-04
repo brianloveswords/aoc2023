@@ -1,3 +1,48 @@
+pub fn part1() {
+    let input = include_str!("../../inputs/real/day2.txt");
+
+    let target_round = Round {
+        red: 12,
+        green: 13,
+        blue: 14,
+    };
+
+    let mut total: u32 = 0;
+    for line in input.lines() {
+        let game = Game::parse(line).expect("invalid game");
+        let max = game.max_possible_pulls();
+        let possible = game.is_game_possible(&target_round);
+
+        if possible {
+            total += game.game_id.0 as u32;
+            println!("new total: {total}");
+        }
+
+        println!("game: {game:?}");
+        println!("max: {max:?}");
+        println!("possible: {possible}");
+    }
+    println!("total: {total}");
+}
+
+pub fn part2() {
+    let input = include_str!("../../inputs/real/day2.txt");
+
+    let mut total: u32 = 0;
+    for line in input.lines() {
+        let game = Game::parse(line).expect("invalid game");
+        let max = game.max_possible_pulls();
+        let power = game.power();
+
+        println!("game: {game:?}");
+        println!("max: {max:?}");
+        println!("power: {power}");
+
+        total += power;
+    }
+    println!("total: {total}");
+}
+
 #[derive(Debug)]
 struct Game {
     game_id: GameId,
@@ -126,49 +171,4 @@ impl Pull {
         };
         Ok(pull)
     }
-}
-
-pub fn part2() {
-    let input = include_str!("../../inputs/real/day2.txt");
-
-    let mut total: u32 = 0;
-    for line in input.lines() {
-        let game = Game::parse(line).expect("invalid game");
-        let max = game.max_possible_pulls();
-        let power = game.power();
-
-        println!("game: {game:?}");
-        println!("max: {max:?}");
-        println!("power: {power}");
-
-        total += power;
-    }
-    println!("total: {total}");
-}
-
-pub fn part1() {
-    let input = include_str!("../../inputs/real/day2.txt");
-
-    let target_round = Round {
-        red: 12,
-        green: 13,
-        blue: 14,
-    };
-
-    let mut total: u32 = 0;
-    for line in input.lines() {
-        let game = Game::parse(line).expect("invalid game");
-        let max = game.max_possible_pulls();
-        let possible = game.is_game_possible(&target_round);
-
-        if possible {
-            total += game.game_id.0 as u32;
-            println!("new total: {total}");
-        }
-
-        println!("game: {game:?}");
-        println!("max: {max:?}");
-        println!("possible: {possible}");
-    }
-    println!("total: {total}");
 }

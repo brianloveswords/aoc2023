@@ -1,5 +1,53 @@
 # day 3
 
+## notes
+
+would like to avoid keeping track of the bounds of the schematic.
+
+could probably be fun at some point to look into a parser combinator e.g. [nom](https://github.com/rust-bakery/nom), but for now I'm still okay hand-rolling the parsers for extra practice and more control over what gets tracked.
+
+### `Range`
+
+moved `Range` to util, could be useful for other things, also added some property tests to it.
+
+`is_overlapping` uses range sizes instead of bounds because that's more intuitive to me specifically, but it requires being able to store an integer twice the capacity of the `start` and `end`. another potential benefit is that it has fewer branching than the bounds check version.
+
+could be fun to use that as an oracle to build & test the version that does all the bounds checking, then benchmarking to see if there's any performance difference at all. not really expecting there to be a significant one, but it's a good excuse to setup benchmarking suite.
+
+#### benchmark results
+
+always find the bounds checking version hard to get right, having a known-good oracle to work from was great.
+
+```rust
+proptest! {
+    #[test]
+    fn is_overlapping_oracle_test(a in gen_range(), b in gen_range()) {
+        assert_eq!(a.is_overlapping_bounds(&b), a.is_overlapping_sizes(&b));
+        assert_eq!(b.is_overlapping_bounds(&a), b.is_overlapping_sizes(&a));
+    }
+}
+```
+
+assuming I set up the benchmark right, [criterion](https://bheisler.github.io/criterion.rs/book/criterion_rs.html) is telling me the bounds version is a performance regression, but we're talking fractions of a nanosecond.
+
+```
+is_overlapping          time:   [3.0799 ns 3.0832 ns 3.0870 ns]
+                        change: [+6.8911% +7.0197% +7.1413%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+```
+
+overlapping is a part of adjacency checking, and that's a significant enough part of the workload that the change is meaningful enough in the full program that the regression is noticible there, too.
+
+```
+day3::part1             time:   [399.80 µs 400.44 µs 401.12 µs]
+                        change: [+3.4578% +3.9077% +4.3164%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+
+day3::part2             time:   [226.95 µs 227.47 µs 228.07 µs]
+                        change: [+3.5294% +3.8345% +4.1292%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+```
+
 ## puzzle
 
 ### part 1

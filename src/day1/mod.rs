@@ -1,3 +1,21 @@
+pub fn part2() {
+    const REAL_INPUT: &str = include_str!("../../inputs/real/day1.txt");
+
+    let mut total = 0;
+
+    for line in REAL_INPUT.lines() {
+        let res = parse(line);
+        println!("{line} -> {res:?}");
+
+        match res {
+            Ok(value) => total += value,
+            Err(line) => panic!("failed to parse any digits: {line}"),
+        }
+    }
+
+    println!("total: {}", total)
+}
+
 fn parse_digit(s: &str) -> Option<char> {
     if s.contains("one") {
         return Some('1');
@@ -83,22 +101,4 @@ fn parse(s: &str) -> Result<u32, &str> {
         .parse::<u32>()
         .expect("expected two digits");
     Ok(value)
-}
-
-pub fn part2() {
-    const REAL_INPUT: &str = include_str!("../../inputs/real/day1.txt");
-
-    let mut total = 0;
-
-    for line in REAL_INPUT.lines() {
-        let res = parse(line);
-        println!("{line} -> {res:?}");
-
-        match res {
-            Ok(value) => total += value,
-            Err(line) => panic!("failed to parse any digits: {line}"),
-        }
-    }
-
-    println!("total: {}", total)
 }
