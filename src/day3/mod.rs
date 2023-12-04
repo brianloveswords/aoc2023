@@ -1,4 +1,4 @@
-use crate::util::Range;
+use crate::util::{Parser, Range};
 use std::collections::{BTreeMap, HashSet};
 
 pub const EXAMPLE: &str = include_str!("../../inputs/examples/day3.txt");
@@ -177,73 +177,29 @@ impl Token {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-struct SchematicParser<'a> {
-    input: &'a str,
-    bytes: &'a [u8],
-    offset: usize,
-    line: u32,
-    column: u32,
-}
+#[derive(Debug)]
+struct SchematicParser<'a>(Parser<'a>);
 
 impl<'a> SchematicParser<'a> {
     fn new(input: &'a str) -> Self {
-        Self {
-            input,
-            bytes: input.as_bytes(),
-            offset: 0,
-            line: 1,
-            column: 1,
-        }
-    }
-
-    fn peek(&self) -> Option<char> {
-        self.bytes.get(self.offset).map(|b| char::from(*b))
-    }
-
-    fn next_while<F>(&mut self, mut f: F) -> Option<&'a str>
-    where
-        F: FnMut(char) -> bool,
-    {
-        let start = self.offset;
-        while let Some(c) = self.peek() {
-            if !f(c) {
-                break;
-            }
-            self.next();
-        }
-
-        if self.offset == start {
-            return None;
-        }
-
-        Some(&self.input[start..self.offset])
-    }
-
-    fn next(&mut self) -> Option<char> {
-        let c = self.bytes.get(self.offset).map(|b| char::from(*b))?;
-        self.offset += 1;
-        self.column += 1;
-        if c == '\n' {
-            self.line += 1;
-            self.column = 1;
-        }
-        Some(c)
+        Self(Parser::new(input))
     }
 
     fn parse_token(&mut self) -> Option<Token> {
+        let p = &mut self.0;
+
         // drop whitespace. whatever comes after will be a token or EOF
-        self.next_while(|c| c == '.' || c.is_whitespace());
+        p.next_while(|c| c == '.' || c.is_whitespace());
 
         // we won't cross a line boundary during token parsing
-        let line = self.line;
+        let line = p.line();
 
         // keep track of starting position for building the token range
-        let start_column = self.column;
+        let start_column = p.column();
 
         // try to parse a number
-        if let Some(number) = self.next_while(|c| c.is_digit(10)) {
-            let range = Range::new(start_column, self.column);
+        if let Some(number) = p.next_while(|c| c.is_digit(10)) {
+            let range = Range::new(start_column, p.column());
             let number = number
                 .parse()
                 .expect("filtered for digits, should have a number");
@@ -255,8 +211,8 @@ impl<'a> SchematicParser<'a> {
         }
 
         // everything else is a symbol
-        let symbol = self.next()?;
-        let range = Range::new(start_column, self.column);
+        let symbol = p.next()?;
+        let range = Range::new(start_column, p.column());
         Some(Token::Symbol {
             symbol,
             line,

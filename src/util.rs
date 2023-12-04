@@ -18,6 +18,19 @@ impl Range {
         Self { start, end }
     }
 
+    /// Returns true if the given range overlaps with this range.
+    ///
+    /// # Examples
+    /// ```
+    /// use aoc2023::util::Range;
+    ///
+    /// let a = Range::new(0, 10);
+    /// let b = Range::new(5, 15);
+    /// let c = Range::new(10, 20);
+    ///
+    /// assert!(a.is_overlapping(&b));
+    /// assert!(!a.is_overlapping(&c)); // touching is not overlapping
+    /// ```
     pub fn is_overlapping(&self, other: &Self) -> bool {
         self.is_overlapping_sizes(other)
     }
@@ -39,19 +52,6 @@ impl Range {
         is_prefix || is_suffix || is_contained
     }
 
-    /// Returns true if the given range overlaps with this range.
-    ///
-    /// # Examples
-    /// ```
-    /// use aoc2023::util::Range;
-    ///
-    /// let a = Range::new(0, 10);
-    /// let b = Range::new(5, 15);
-    /// let c = Range::new(10, 20);
-    ///
-    /// assert!(a.is_overlapping(&b));
-    /// assert!(!a.is_overlapping(&c)); // touching is not overlapping
-    /// ```
     #[allow(dead_code)]
     fn is_overlapping_sizes(&self, other: &Self) -> bool {
         // get the sizes of the independent ranges, then collapse
@@ -95,6 +95,122 @@ impl Range {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Parser<'a> {
+    input: &'a str,
+    bytes: &'a [u8],
+    offset: usize,
+    line: u32,
+    column: u32,
+}
+
+impl<'a> Parser<'a> {
+    /// Creates a new parser for the given input.
+    pub fn new(input: &'a str) -> Self {
+        Self {
+            input,
+            bytes: input.as_bytes(),
+            offset: 0,
+            line: 1,
+            column: 1,
+        }
+    }
+
+    /// Returns the current offset into the input.
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Returns the current line number.
+    pub fn line(&self) -> u32 {
+        self.line
+    }
+
+    /// Returns the current column number.
+    pub fn column(&self) -> u32 {
+        self.column
+    }
+
+    /// Returns the next byte without consuming it.
+    ///
+    /// # Examples
+    /// ```
+    /// use aoc2023::util::Parser;
+    ///
+    /// let mut parser = Parser::new("abc");
+    /// assert_eq!(parser.peek(), Some('a'));
+    /// assert_eq!(parser.peek(), Some('a'));
+    ///
+    /// // now we consume it
+    /// assert_eq!(parser.next(), Some('a'));
+    ///
+    /// assert_eq!(parser.peek(), Some('b'));
+    /// ```
+    pub fn peek(&self) -> Option<char> {
+        self.bytes.get(self.offset).map(|b| char::from(*b))
+    }
+
+    /// Returns a string slice containing all the characters that
+    /// match the given predicate, consuming them in the process.
+    ///
+    /// Returns `None` if no characters match the predicate.
+    ///
+    /// # Examples
+    /// ```
+    /// use aoc2023::util::Parser;
+    ///
+    /// let mut parser = Parser::new("abc123");
+    /// assert_eq!(parser.next_while(|c| c.is_alphabetic()), Some("abc"));
+    /// assert_eq!(parser.next_while(|c| c.is_numeric()), Some("123"));
+    /// assert_eq!(parser.next_while(|c| c.is_alphabetic()), None);
+    /// ```
+    pub fn next_while<F>(&mut self, mut f: F) -> Option<&'a str>
+    where
+        F: FnMut(char) -> bool,
+    {
+        let start = self.offset;
+        while let Some(c) = self.peek() {
+            if !f(c) {
+                break;
+            }
+            self.advance_cursors(c);
+        }
+
+        if self.offset == start {
+            return None;
+        }
+
+        Some(&self.input[start..self.offset])
+    }
+
+    /// Returns next byte, consuming it.
+    ///
+    /// # Examples
+    /// ```
+    /// use aoc2023::util::Parser;
+    ///
+    /// let mut parser = Parser::new("abc");
+    /// assert_eq!(parser.next(), Some('a'));
+    /// assert_eq!(parser.next(), Some('b'));
+    /// assert_eq!(parser.next(), Some('c'));
+    /// assert_eq!(parser.next(), None);
+    /// ```
+    pub fn next(&mut self) -> Option<char> {
+        let c = self.peek()?;
+        self.advance_cursors(c);
+        Some(c)
+    }
+
+    fn advance_cursors(&mut self, c: char) {
+        self.offset += 1;
+        self.column += 1;
+        if c == '\n' {
+            self.line += 1;
+            self.column = 1;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,7 +228,44 @@ mod tests {
         }
     }
 
-    proptest! {
+    prop_compose! {
+        fn gen_ascii_char()(c in "[a-z]") -> char {
+            c.chars().next().unwrap()
+        }
+    }
+
+    proptest! { // Parser property tests
+        #[test]
+        fn peek_does_not_advance(a in gen_ascii_char(), b in "[a-z]*") {
+            let value = format!("{}{}", a, b);
+            let p = Parser::new(&value);
+
+            for _ in 0..value.len() {
+                assert_eq!(p.peek(), Some(a));
+            }
+
+            assert_eq!(p.offset(), 0);
+            assert_eq!(p.line(), 1);
+            assert_eq!(p.column(), 1);
+        }
+
+        #[test]
+        fn next_while(a in "[0-9]+", b in "[a-z]+", c in "[0-9]+") {
+            let a = a.as_str();
+            let b = b.as_str();
+            let c = c.as_str();
+
+            let value = format!("{}{}{}", a, b, c);
+            let mut p = Parser::new(&value);
+
+            assert_eq!(p.next_while(|c| c.is_numeric()), Some(a));
+            assert_eq!(p.next_while(|c| c.is_alphabetic()), Some(b));
+            assert_eq!(p.next_while(|c| c.is_numeric()), Some(c));
+            assert_eq!(p.next_while(|_| true), None);
+        }
+    }
+
+    proptest! { // Range property tests
         #[test]
         fn is_overlapping_commutative(a in gen_range(), b in gen_range()) {
             assert_eq!(a.is_overlapping(&b), b.is_overlapping(&a));
