@@ -1,15 +1,16 @@
-#![allow(unused)]
-
 use crate::util::Range;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, HashSet};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 enum Token {
+    /// Represents a part number in the engine schematic, e.g. `312`
     Part {
         number: u32,
         line: u32,
         range: Range,
     },
+
+    /// Represents a symbol in the engine schematic, e.g. `*`
     Symbol {
         symbol: char,
         line: u32,
@@ -25,10 +26,10 @@ impl Token {
         }
     }
 
-    fn get_part_number(&self) -> Option<u32> {
+    fn try_part_number(&self) -> Result<u32, String> {
         match self {
-            Token::Part { number, .. } => Some(*number),
-            _ => None,
+            Token::Part { number, .. } => Ok(*number),
+            _ => Err(format!("not a part: {self:?}")),
         }
     }
 
@@ -39,6 +40,7 @@ impl Token {
         }
     }
 
+    #[allow(unused)]
     fn is_symbol(&self) -> bool {
         match self {
             Token::Symbol { .. } => true,
@@ -62,11 +64,8 @@ impl Token {
 
     fn is_adjacent(&self, other: &Self) -> bool {
         let this_line = self.line();
-        let other_line = other.line();
 
-        // check if it's the same line, or one above, or one below
-        if other_line != this_line && other_line + 1 != this_line && other_line - 1 != this_line {
-            // eprintln!("lines don't match: this: {this_line}, other: {other_line}");
+        if !(this_line - 1..=this_line + 1).contains(&other.line()) {
             return false;
         }
 
@@ -129,19 +128,21 @@ impl<'a> SchematicParser<'a> {
     }
 
     fn parse_token(&mut self) -> Option<Token> {
-        // drop whitespace
+        // drop whitespace. whatever comes after will be a token or EOF
         self.next_while(|c| c == '.' || c.is_whitespace());
 
-        // keep track of starting position. we won't cross a line boundary.
+        // we won't cross a line boundary during token parsing
         let line = self.line;
+
+        // keep track of starting position for building the token range
         let start_column = self.column;
 
         // try to parse a number
         if let Some(number) = self.next_while(|c| c.is_digit(10)) {
+            let range = Range::new(start_column, self.column);
             let number = number
                 .parse()
                 .expect("filtered for digits, should have a number");
-            let range = Range::new(start_column, self.column);
             return Some(Token::Part {
                 number,
                 line,
@@ -160,62 +161,57 @@ impl<'a> SchematicParser<'a> {
     }
 }
 
-fn part2(s: &str) -> u32 {
-    let mut parser = SchematicParser::new(s);
-    let mut part_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
-    let mut gear_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
+/// LineTokenMap is a map of line numbers to tokens on that line
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct LineTokenMap(BTreeMap<usize, Vec<Token>>);
 
-    while let Some(token) = parser.parse_token() {
-        let token_line = token.line();
-        let map = match token {
-            Token::Part { .. } => &mut part_map,
-            t @ Token::Symbol { .. } if t.is_possible_gear() => &mut gear_map,
-            Token::Symbol { .. } => continue,
-        };
-
-        let line = map.entry(token_line).or_default();
-        line.push(token);
+impl LineTokenMap {
+    /// Creates a new empty LineTokenMap
+    fn new() -> Self {
+        Self(BTreeMap::new())
     }
 
-    let mut total_ratio = 0;
-
-    for (line, gears) in gear_map {
-        let mut possible_parts = vec![];
-        let adjacent_lines = [line - 1, line, line + 1];
-        for line in adjacent_lines.iter() {
-            if let Some(parts) = part_map.get(line) {
-                possible_parts.extend(parts);
-            }
-        }
-
-        for gear in gears {
-            let parts = possible_parts
-                .iter()
-                .filter(|part| gear.is_adjacent(part))
-                .collect::<Vec<_>>();
-
-            if parts.len() != 2 {
-                // eprintln!("symbol {symbol:?}: not a gear, expected 2 parts, found {parts:?}");
-                continue;
-            }
-
-            let ratio = parts
-                .iter()
-                .map(|part| part.get_part_number().expect("should be a part"))
-                .product::<u32>();
-
-            total_ratio += ratio;
-        }
+    /// Inserts a token into the map
+    fn insert(&mut self, token: Token) {
+        let line = token.line();
+        let line_tokens = self.0.entry(line as usize).or_default();
+        line_tokens.push(token);
     }
 
-    total_ratio
+    /// Returns tokens from the line above, the line below, and the current line
+    fn nearby_tokens(&self, line: usize) -> Vec<&Token> {
+        let nearby_lines = line - 1..=line + 1;
+        nearby_lines.filter_map(|l| self.get(l)).flatten().collect()
+    }
+
+    /// Returns a reference to the tokens on the given line.
+    ///
+    /// Returns `None` if the line is empty.
+    fn get(&self, line: usize) -> Option<&Vec<Token>> {
+        self.0.get(&line)
+    }
 }
 
-fn part1(input: &str) -> u32 {
+impl IntoIterator for LineTokenMap {
+    type Item = (usize, Vec<Token>);
+    type IntoIter = std::collections::btree_map::IntoIter<usize, Vec<Token>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+pub fn part1(input: &str) -> u32 {
     let mut parser = SchematicParser::new(input);
+
+    // since we only need to for adjacency between gears and parts, not all
+    // tokens, we can skip some work later by tracking them separately up front.
+    //
+    // fast lookup by line number is also beneficial for us because we only need
+    // to look at neighboring lines to determine gear adjacency.
+
     let mut part_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
     let mut gear_map: BTreeMap<_, Vec<_>> = BTreeMap::new();
-
     while let Some(token) = parser.parse_token() {
         let token_line = token.line();
         let map = match token {
@@ -227,40 +223,71 @@ fn part1(input: &str) -> u32 {
         line.push(token);
     }
 
-    let mut found_parts = BTreeSet::new();
+    // with an engine schematic like the following:
+    //
+    // *11*
+    //
+    // we'd end up finding `11` twice, once for each symbol. we only want to
+    // count each part once, so we'll use a set to track parts.
 
+    let mut adjacent_parts: HashSet<Token> = HashSet::new();
     for (line, symbols) in gear_map {
-        let above = part_map.get(&(line - 1));
-        let below = part_map.get(&(line + 1));
-        let same = part_map.get(&line);
+        let is_adjacent = |t: &&Token| symbols.iter().any(|s| s.is_adjacent(t));
+        let surrounding_lines = line - 1..=line + 1;
 
-        let mut all = vec![];
-        if let Some(above) = above {
-            all.extend(above);
-        }
-        if let Some(below) = below {
-            all.extend(below);
-        }
-        if let Some(same) = same {
-            all.extend(same);
-        }
+        let adjacent = surrounding_lines
+            .filter_map(|l| part_map.get(&l))
+            .flatten()
+            .filter(is_adjacent);
 
-        for symbol in symbols {
-            for number in all.iter() {
-                if symbol.is_adjacent(number) {
-                    found_parts.insert(*number);
-                }
+        adjacent_parts.extend(adjacent);
+    }
+
+    adjacent_parts
+        .iter()
+        .map(|p| p.try_part_number().unwrap())
+        .sum()
+}
+
+pub fn part2(s: &str) -> u32 {
+    let mut parser = SchematicParser::new(s);
+
+    // similar to part 1, but we can save even more work by only tracking
+    // the gears instead of all the symbols. we still need to track all parts.
+    let mut part_map = LineTokenMap::new();
+    let mut gear_map = LineTokenMap::new();
+    while let Some(token) = parser.parse_token() {
+        let map = match token {
+            t if t.is_part() => &mut part_map,
+            t if t.is_possible_gear() => &mut gear_map,
+            _ => continue,
+        };
+        map.insert(token);
+    }
+
+    let mut total_ratio = 0;
+    for (line, gears) in gear_map {
+        let nearby = part_map.nearby_tokens(line);
+
+        // spec requires us to have exactly two parts attached to a gear,
+        // so we bail early if we find anything different.
+        for gear in gears {
+            let adjacent = nearby
+                .iter()
+                .filter(|p| gear.is_adjacent(p))
+                .map(|p| p.try_part_number())
+                .collect::<Result<Vec<_>, String>>()
+                .expect("should only be parts in the part_map");
+
+            if adjacent.len() != 2 {
+                continue;
             }
+
+            total_ratio += adjacent.iter().product::<u32>();
         }
     }
 
-    // println!("found numbers: {:?}", found_numbers);
-    let total = found_parts
-        .iter()
-        .map(|num| num.get_part_number().expect("should be a number"))
-        .sum::<u32>();
-
-    total
+    total_ratio
 }
 
 #[cfg(test)]
@@ -272,6 +299,7 @@ mod test {
     fn test_parse_token() {
         let lines = "467..114..\n&..35..633";
         let mut parser = SchematicParser::new(lines);
+
         let token = parser.parse_token();
         assert_eq!(
             token,
@@ -353,5 +381,6 @@ mod test {
         let input = include_str!("../../inputs/real/day3.txt");
         let total = part2(input);
         println!("part2: {}", total);
+        assert_eq!(total, 81166799);
     }
 }
