@@ -101,7 +101,7 @@ Benchmark 1: target/release/main
 
 so around 170ms is probably close to the limit of brute forcing the result by simulating the whole thing. there might be a way to compute this without having to simulate it.
 
-looking at the puzzle, each card produces these other cards:
+looking at the example, each card produces these other cards:
 
 ```
 1 = {2,3,4,5}
