@@ -1,30 +1,132 @@
-#![allow(dead_code)]
-
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet, VecDeque};
 
 pub const EXAMPLE: &str = include_str!("../../inputs/examples/day4.txt");
 pub const REAL: &str = include_str!("../../inputs/real/day4.txt");
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+struct StepValue {
+    card_id: CardId,
+    generation: usize,
+    added_ids: Vec<CardId>,
+}
+
+impl StepValue {
+    fn new(card_id: CardId, generation: usize, added_ids: Vec<CardId>) -> Self {
+        Self {
+            card_id,
+            generation,
+            added_ids,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct CardTable {
+    card_map: BTreeMap<CardId, Card>,
+    result_map: BTreeMap<CardId, Vec<Card>>,
+    pending_stack: VecDeque<Card>,
+    processed_count: usize,
+    current_generation: usize,
+}
+
+impl CardTable {
+    fn new(cards: impl Iterator<Item = Card>) -> Self {
+        let mut card_map = BTreeMap::new();
+        let mut pending_stack = VecDeque::new();
+
+        for card in cards {
+            card_map.insert(card.id, card.clone());
+            pending_stack.push_back(card);
+        }
+
+        Self {
+            card_map,
+            pending_stack,
+            result_map: BTreeMap::new(),
+            processed_count: 0,
+            current_generation: 0,
+        }
+    }
+
+    fn process_scratchcards(mut self) -> usize {
+        while let Some(step) = self.step_debug() {
+            if step.generation > 1000 {
+                panic!("too many generations");
+            }
+        }
+        self.processed_count
+    }
+
+    pub fn step_debug(&mut self) -> Option<StepValue> {
+        let card = match self.pending_stack.pop_front() {
+            Some(card) => card,
+            None => return None,
+        };
+
+        self.processed_count += 1;
+
+        if let Some(result) = self.result_map.get(&card.id) {
+            let mut cards = Vec::with_capacity(result.len());
+            let mut ids = Vec::with_capacity(result.len());
+
+            for card in result {
+                cards.push(card.duplicate());
+                ids.push(card.id);
+            }
+
+            self.pending_stack.extend(cards);
+            return Some(StepValue::new(card.id, card.generation, ids));
+        }
+
+        let winners = card.winners();
+        let next_ids = card.id.next_ids(winners.len());
+
+        let mut result = Vec::with_capacity(next_ids.len());
+        for id in &next_ids {
+            let card = self.card_map.get(&id).unwrap().duplicate();
+            result.push(card.clone());
+            self.pending_stack.push_back(card);
+        }
+
+        self.result_map.insert(card.id, result);
+        Some(StepValue::new(card.id, card.generation, next_ids))
+    }
+
+    fn parse(s: &str) -> Result<Self, String> {
+        let cards = s
+            .trim()
+            .lines()
+            .map(Card::parse)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Self::new(cards.into_iter()))
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Card {
     id: CardId,
+    generation: usize,
     goal: NumberSet,
     hand: NumberSet,
 }
 
 impl Card {
-    fn winners(&self) -> NumberSet {
-        let (_, winners) = self.score_with_winners();
-        winners
+    fn duplicate(&self) -> Self {
+        Self {
+            id: self.id,
+            generation: self.generation + 1,
+            goal: self.goal.clone(),
+            hand: self.hand.clone(),
+        }
     }
 
-    fn score(&self) -> usize {
-        let (score, _) = self.score_with_winners();
-        score
+    fn winners(&self) -> NumberSet {
+        self.goal.find_winners(&self.hand)
     }
 
     fn score_with_winners(&self) -> (usize, NumberSet) {
-        let winners = self.goal.find_winners(&self.hand);
+        let winners = self.winners();
         let len = winners.len();
         if len == 0 {
             return (0, NumberSet::empty());
@@ -46,16 +148,25 @@ impl Card {
         let goal = NumberSet::parse(goal)?;
         let hand = NumberSet::parse(hand)?;
 
-        Ok(Self { id, goal, hand })
+        Ok(Self {
+            id,
+            goal,
+            hand,
+            generation: 1,
+        })
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 struct CardId(usize);
 
 impl CardId {
     fn new(n: usize) -> Self {
         Self(n)
+    }
+
+    fn next_ids(&self, n: usize) -> Vec<Self> {
+        (self.0 + 1..=self.0 + n).map(Self::new).collect()
     }
 
     fn parse(s: &str) -> Result<Self, String> {
@@ -106,6 +217,7 @@ impl NumberSet {
         Ok(Self::new(set?))
     }
 
+    #[cfg(test)]
     fn must_parse(s: &str) -> Self {
         Self::parse(s).expect("valid input")
     }
@@ -127,9 +239,12 @@ pub fn part1(s: &str) -> usize {
         .map(|c| c.score_with_winners())
         .collect();
 
-    println!("{:?}", winners);
-
     winners.iter().map(|(score, _)| score).sum()
+}
+
+pub fn part2(s: &str) -> usize {
+    let table = CardTable::parse(s).expect("invalid input");
+    table.process_scratchcards()
 }
 
 #[cfg(test)]
@@ -142,8 +257,57 @@ mod tests {
     }
 
     #[test]
+    fn part2_example() {
+        assert_eq!(part2(EXAMPLE), 30);
+    }
+
+    #[test]
     fn part1_real() {
         assert_eq!(part1(REAL), 23441);
+    }
+
+    #[test]
+    fn part2_real() {
+        assert_eq!(part2(REAL), 5923918);
+    }
+
+    #[test]
+    fn card_ids_next_ids() {
+        assert_eq!(CardId(1).next_ids(3), vec![CardId(2), CardId(3), CardId(4)]);
+    }
+
+    #[test]
+    fn card_table_step() {
+        let mut table = CardTable::parse(EXAMPLE).expect("valid input");
+
+        let step = table.step_debug().expect("step");
+        assert_eq!(step.generation, 1);
+        assert_eq!(step.card_id, CardId(1));
+        assert_eq!(
+            step.added_ids,
+            vec![CardId(2), CardId(3), CardId(4), CardId(5)]
+        );
+
+        let step = table.step_debug().expect("step");
+        assert_eq!(step.generation, 1);
+        assert_eq!(step.card_id, CardId(2));
+        assert_eq!(step.added_ids, vec![CardId(3), CardId(4)]);
+        assert_eq!(table.processed_count, 2);
+    }
+
+    #[test]
+    fn card_table_parse() {
+        let input = "
+Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
+Card 2: 18 25 71 33 19 | 71 33 19 25  6 18  3  4
+        ";
+
+        let table = CardTable::parse(input).expect("valid input");
+
+        assert_eq!(table.card_map.len(), 2);
+        assert_eq!(table.result_map.len(), 0);
+        assert_eq!(table.pending_stack.len(), 2);
+        assert_eq!(table.processed_count, 0);
     }
 
     #[test]
@@ -165,7 +329,6 @@ mod tests {
         assert_eq!(card.hand.len(), 7);
         assert_eq!(card.goal, NumberSet::must_parse("41 48 83 86 17"));
         assert_eq!(card.hand, NumberSet::must_parse("20  1 82 48 41 17  9"));
-        println!("{:?}", card);
     }
 
     #[test]
