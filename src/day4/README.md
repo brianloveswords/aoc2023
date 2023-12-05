@@ -41,6 +41,91 @@
         - store result in result_map
         - push result to stack
 
+
+#### benchmarking
+
+trying out [hyperfine](https://github.com/sharkdp/hyperfine) for some benchmarking with `hyperfine --warmup 3`
+
+```
+Benchmark 1: target/release/main
+  Time (mean ± σ):       1.729 s ±   0.015 s    [User: 1.410 s, System: 0.299 s]
+  Range (min … max):    1.711 s …  1.767 s    10 runs
+```
+
+this is not bad, a twitter pal of mine who I suspect is using python got [3 seconds](https://twitter.com/haxor/status/1731721271896121632) for their solution.
+
+for my first attempt, I chose to fully clone cards, bumping `generation` on each copy, since I figured it'd be useful for debugging—I knew it was gonna get out of hand real quick with the number of scratchcards. I also included a rich return struct for `step()` so I could inspect the state at each stage.
+
+I have a working version and I'm trying to see how fast I can get it so I'm gonna remove all that. this lets me use `CardId`s instead of full cards in a bunch of places.
+
+making those changes shaves off about 90% of the running time:
+
+```
+Benchmark 1: target/release/main
+  Time (mean ± σ):      175.9 ms ±    0.5 ms    [User: 172.7 ms, System: 1.8 ms]
+  Range (min … max):   175.1 ms … 176.9 ms    16 runs
+```
+
+out of curiosity, I wanted to how much it would hurt performance to remove the result cache:
+
+```diff
+pub fn step(&mut self) -> Option<usize> {
+    let id = match self.pending.pop_front() {
+        Some(card) => card,
+        None => return None,
+    };
+
+    self.processed += 1;
+
+    let card = self.cards.get(&id).unwrap();
+
+-    if let Some(ids) = self.results.get(&id) {
+-        self.pending.extend(ids);
+-        return Some(ids.len());
+-    }
+
+    let copies = card.id.next_ids(card.winners().len());
+    self.pending.extend(&next_ids);
+-    self.results.insert(card.id, copies.clone());
+    Some(copies.len())
+}
+```
+
+and it destroys all the previous gains, making it 10x slower again.
+
+```
+Benchmark 1: target/release/main
+  Time (mean ± σ):       1.704 s ±   0.018 s    [User: 1.692 s, System: 0.003 s]
+  Range (min … max):    1.684 s …  1.748 s    10 runs
+```
+
+so around 170ms is probably close to the limit of brute forcing the result by simulating the whole thing. there might be a way to compute this without having to simulate it.
+
+looking at the puzzle, each card produces these other cards:
+
+```
+1 = {2,3,4,5}
+2 = {3,4}
+3 = {4,5}
+4 = {5}
+5 = {}
+6 = {}
+```
+
+to count how many cards are produced, we need to look up all prior cards, filter in only the cards that produce this type of card, and add up how many of _those_ cards are produced.
+
+```
+one = 1
+two = (one=1) + 1 = 2
+three = (one=1) + (two=2) + 1 = 4
+four = (one=1) + (two=2) + (three=4) + 1 = 8
+five = (one=1) + (three=4) + (four=8) + 1 = 14
+six = 1
+```
+
+yeah, I think this would work, adding all that up gets to 30. let's try it out!
+
+
 ## puzzle
 
 ### part 1
