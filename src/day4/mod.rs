@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 pub const EXAMPLE: &str = include_str!("../../inputs/examples/day4.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day4.txt");
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Card {
@@ -24,6 +25,10 @@ impl Card {
 
     fn score_with_winners(&self) -> (usize, NumberSet) {
         let winners = self.goal.find_winners(&self.hand);
+        let len = winners.len();
+        if len == 0 {
+            return (0, NumberSet::empty());
+        }
         (2usize.pow(winners.len() as u32 - 1), winners)
     }
 
@@ -92,6 +97,10 @@ impl NumberSet {
         Self(set)
     }
 
+    fn empty() -> Self {
+        Self::new(HashSet::new())
+    }
+
     fn parse(s: &str) -> Result<Self, String> {
         let set: Result<HashSet<_>, _> = s.trim().split_whitespace().map(Number::parse).collect();
         Ok(Self::new(set?))
@@ -110,13 +119,32 @@ impl NumberSet {
     }
 }
 
-pub fn part1(_s: &str) -> usize {
-    todo!("write this")
+pub fn part1(s: &str) -> usize {
+    let winners: Vec<_> = s
+        .lines()
+        .map(Card::parse)
+        .map(Result::unwrap)
+        .map(|c| c.score_with_winners())
+        .collect();
+
+    println!("{:?}", winners);
+
+    winners.iter().map(|(score, _)| score).sum()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn part1_example() {
+        assert_eq!(part1(EXAMPLE), 13);
+    }
+
+    #[test]
+    fn part1_real() {
+        assert_eq!(part1(REAL), 23441);
+    }
 
     #[test]
     fn card_score() {
