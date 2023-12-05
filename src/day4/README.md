@@ -48,7 +48,7 @@ trying out [hyperfine](https://github.com/sharkdp/hyperfine) for some benchmarki
 
 ```
 Benchmark 1: target/release/main
-  Time (mean ± σ):       1.729 s ±   0.015 s    [User: 1.410 s, System: 0.299 s]
+  Time (mean ± σ):      1.729 s ±  0.015 s    [User: 1.410 s, System: 0.299 s]
   Range (min … max):    1.711 s …  1.767 s    10 runs
 ```
 
@@ -62,7 +62,7 @@ making those changes shaves off about 90% of the running time:
 
 ```
 Benchmark 1: target/release/main
-  Time (mean ± σ):      175.9 ms ±    0.5 ms    [User: 172.7 ms, System: 1.8 ms]
+  Time (mean ± σ):     175.9 ms ±   0.5 ms    [User: 172.7 ms, System: 1.8 ms]
   Range (min … max):   175.1 ms … 176.9 ms    16 runs
 ```
 
@@ -95,7 +95,7 @@ and it destroys all the previous gains, making it 10x slower again.
 
 ```
 Benchmark 1: target/release/main
-  Time (mean ± σ):       1.704 s ±   0.018 s    [User: 1.692 s, System: 0.003 s]
+  Time (mean ± σ):      1.704 s ±  0.018 s    [User: 1.692 s, System: 0.003 s]
   Range (min … max):    1.684 s …  1.748 s    10 runs
 ```
 
@@ -124,6 +124,45 @@ six = 1
 ```
 
 yeah, I think this would work, adding all that up gets to 30. let's try it out!
+
+```rust
+// note: cards must be sorted
+fn process_scratchcards_with_math(self) -> usize {
+    let mut results: BTreeMap<&CardId, HashSet<CardId>> = BTreeMap::new();
+
+    for id in &self.pending {
+        let card = self.cards.get(&id).unwrap();
+        let ids: HashSet<_> = card.id.next_ids(card.winners().len()).into_iter().collect();
+        results.insert(id, ids);
+    }
+
+    let mut total = 0;
+    let mut counts: BTreeMap<&CardId, usize> = BTreeMap::new();
+
+    for id in &self.pending {
+        let count = results
+            .iter()
+            .take_while(|(k, _)| k.0 < id.0)
+            .filter(|(_, ids)| ids.contains(id))
+            .map(|(k, _)| counts.get(k).expect("should have been inserted"))
+            .sum::<usize>()
+            + 1;
+
+        counts.insert(id, count);
+        total += count;
+    }
+
+    total
+}
+```
+
+now we're talking
+
+```
+Benchmark 1: target/release/main
+  Time (mean ± σ):       3.0 ms ±   0.1 ms    [User: 2.2 ms, System: 0.5 ms]
+  Range (min … max):     2.8 ms …   3.5 ms    929 runs
+```
 
 
 ## puzzle

@@ -3,6 +3,22 @@ use std::collections::{BTreeMap, HashSet, VecDeque};
 pub const EXAMPLE: &str = include_str!("../../inputs/examples/day4.txt");
 pub const REAL: &str = include_str!("../../inputs/real/day4.txt");
 
+pub fn part1(s: &str) -> usize {
+    let winners: Vec<_> = s
+        .lines()
+        .map(Card::parse)
+        .map(Result::unwrap)
+        .map(|c| c.score_with_winners())
+        .collect();
+
+    winners.iter().map(|(score, _)| score).sum()
+}
+
+pub fn part2(s: &str) -> usize {
+    let table = CardTable::parse(s).expect("invalid input");
+    table.process_scratchcards_with_math()
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct CardTable {
     cards: BTreeMap<CardId, Card>,
@@ -29,6 +45,7 @@ impl CardTable {
         }
     }
 
+    #[allow(dead_code)]
     fn process_scratchcards(mut self) -> usize {
         let mut n = 0;
         while self.step().is_some() {
@@ -36,6 +53,35 @@ impl CardTable {
             debug_assert!(n < 10_000_000, "infinite loop detected: {n} > 10,000,000")
         }
         self.processed
+    }
+
+    // note: cards must be in order and 1-indexed
+    fn process_scratchcards_with_math(self) -> usize {
+        let mut results: BTreeMap<&CardId, HashSet<CardId>> = BTreeMap::new();
+
+        for id in &self.pending {
+            let card = self.cards.get(&id).unwrap();
+            let ids: HashSet<_> = card.id.next_ids(card.winners().len()).into_iter().collect();
+            results.insert(id, ids);
+        }
+
+        let mut total = 0;
+        let mut counts: BTreeMap<&CardId, usize> = BTreeMap::new();
+
+        for id in &self.pending {
+            let count = results
+                .iter()
+                .take_while(|(k, _)| k.0 < id.0)
+                .filter(|(_, ids)| ids.contains(id))
+                .map(|(k, _)| counts.get(k).expect("should have been inserted"))
+                .sum::<usize>()
+                + 1;
+
+            counts.insert(id, count);
+            total += count;
+        }
+
+        total
     }
 
     pub fn step(&mut self) -> Option<usize> {
@@ -189,22 +235,6 @@ impl NumberSet {
     }
 }
 
-pub fn part1(s: &str) -> usize {
-    let winners: Vec<_> = s
-        .lines()
-        .map(Card::parse)
-        .map(Result::unwrap)
-        .map(|c| c.score_with_winners())
-        .collect();
-
-    winners.iter().map(|(score, _)| score).sum()
-}
-
-pub fn part2(s: &str) -> usize {
-    let table = CardTable::parse(s).expect("invalid input");
-    table.process_scratchcards()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -224,10 +254,10 @@ mod tests {
         assert_eq!(part2(EXAMPLE), 30);
     }
 
-    // #[test]
-    // fn part2_real() {
-    //     assert_eq!(part2(REAL), 5923918);
-    // }
+    #[test]
+    fn part2_real() {
+        assert_eq!(part2(REAL), 5923918);
+    }
 
     #[test]
     fn card_ids_next_ids() {
