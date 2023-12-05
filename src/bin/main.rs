@@ -1,8 +1,6 @@
-use aoc2023::day3;
-
-const SCHEMATIC: &str = day3::REAL;
+use aoc2023::day4;
 
 fn main() {
-    let result = day3::part2(SCHEMATIC);
+    let result = day4::part1(day4::EXAMPLE);
     println!("result: {}", result);
 }

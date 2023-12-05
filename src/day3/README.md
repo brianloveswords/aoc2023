@@ -48,6 +48,8 @@ day3::part2             time:   [226.95 µs 227.47 µs 228.07 µs]
                         Performance has regressed.
 ```
 
+but we're still talking about microseconds!
+
 ## puzzle
 
 ### part 1
