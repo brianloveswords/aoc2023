@@ -1,5 +1,18 @@
 # day 4
 
+## notes
+
+- Card
+    - winning: Vec<Number>
+    - in_hand: Vec<Number>
+
+
+    - parse()
+        - (card_number, all_numbers) = split on `:`
+        - (winning_list, in_hand_list) = split on `|`
+        - numbers = split on `whitespace`
+
+
 ## puzzle
 
 ### part 1
