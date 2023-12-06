@@ -21,6 +21,33 @@
         - apply offset to get new value
     - fold all blocks with seed as initial value
 
+### part 2
+
+I brute forced the right answer in about 3m.
+
+initially tried to do some clever stuff in `Conversion`, storing the `Fn(u64) -> u64)` and calling that in `attempt` instead of having to store the sign and offset separately. it's simpler, and slightly faster as it turns out, to store the sign and offset separately so I went back to that.
+
+still, iterating through every single seed is always going to be unbearably slow. i gotta figure out how to transform ranges.
+
+- seed: `(55, 13)`
+- conversion: `(50->52, 48)`
+    - takes a range, returns (unconverted_stack, converted_range)
+        - if the seed range size is greater than conversion range
+            - two get added to unconverted_stack
+        - if the seed range does not overlap at all
+            - return as unconverted_stack
+- `(55, 13)` applied to `(50->52, 48)`
+    - `(57, 13)`
+- `(45, 10)` applied to `(50->55, 3)`
+    - unmapped: `(45, 5), (53, 2)`
+    - mapped: `(55, 3)`
+
+    - pre_len = `(c.start - s.start).max(s.len) = 5`
+    - pre = `(s.start, pre_len) = (45, 5)`
+    - post_start = `c.start + c.len = 53`
+    - post_len = `s.start + s.len - post_start = 2`
+    - mapped_len = `s.len - post_len + pre_len`
+
 ## puzzle
 
 ### part 1
