@@ -93,6 +93,23 @@ impl Range {
             end: self.end.saturating_add(n),
         }
     }
+
+    /// Returns true if the range includes the given value.
+    ///
+    /// # Examples
+    /// ```
+    /// use aoc2023::util::Range;
+    ///
+    /// let range = Range::new(0, 10);
+    ///
+    /// assert!(range.includes(0));
+    /// assert!(range.includes(5));
+    /// assert!(range.includes(9));
+    /// assert!(!range.includes(10));
+    /// ```
+    pub fn includes(&self, value: u32) -> bool {
+        value >= self.start && value < self.end
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -281,6 +298,15 @@ mod tests {
         fn is_adjacent_commutative(a in gen_range(), b in gen_range()) {
             assert_eq!(a.is_adjacent(&b), b.is_adjacent(&a));
         }
+    }
+
+    #[test]
+    fn test_includes() {
+        let a = Range::new(0, 10);
+        assert!(a.includes(0));
+        assert!(a.includes(5));
+        assert!(a.includes(9));
+        assert!(!a.includes(10));
     }
 
     #[test]

@@ -1,6 +1,6 @@
-use aoc2023::day4;
+use aoc2023::day5;
 
 fn main() {
-    let result = day4::part2(day4::REAL);
+    let result = day5::part1(day5::EXAMPLE);
     println!("result: {result}");
 }
