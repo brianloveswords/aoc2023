@@ -1,35 +1,100 @@
 #![allow(dead_code)]
 
-use crate::util::Range;
+use std::ops;
 
 pub const EXAMPLE: &str = include_str!("../../inputs/examples/day5.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day5.txt");
 
-pub fn part1(s: &str) -> u32 {
+pub fn part1(s: &str) -> u64 {
     let almanac = Almanac::parse(s);
-    println!("{almanac:?}");
-    almanac.process_seed(14)
+    let results = almanac.process_all_seeds();
+    *(results.iter().min().unwrap())
+}
+
+pub fn part2(s: &str) -> u64 {
+    let almanac = Almanac::parse(s);
+    let results = almanac.process_seed_ranges();
+    *(results.iter().min().unwrap())
 }
 
 #[derive(Debug)]
-struct Almanac {
-    seeds: Vec<u32>,
+pub struct Almanac {
+    seeds: Vec<u64>,
     maps: Vec<Map>,
 }
 
+#[derive(Debug)]
+pub struct SeedIterator {
+    ranges: Vec<ops::Range<u64>>,
+    idx: usize,
+}
+
+impl SeedIterator {
+    fn new(ranges: Vec<ops::Range<u64>>) -> Self {
+        Self { ranges, idx: 0 }
+    }
+    fn empty() -> Self {
+        Self {
+            ranges: vec![],
+            idx: 0,
+        }
+    }
+
+    fn add_range(&mut self, range: ops::Range<u64>) {
+        self.ranges.push(range);
+    }
+}
+
+impl Iterator for SeedIterator {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.ranges.get_mut(self.idx)?;
+
+        if let Some(n) = current.next() {
+            Some(n)
+        } else {
+            self.idx += 1;
+            println!("advancing to next range: {}", self.idx);
+
+            self.next()
+        }
+    }
+}
+
 impl Almanac {
-    fn process_all_seeds(&self) -> Vec<u32> {
+    fn process_all_seeds(&self) -> Vec<u64> {
         self.seeds.iter().map(|s| self.process_seed(*s)).collect()
     }
 
-    fn process_seed(&self, seed: u32) -> u32 {
+    fn process_seed_ranges(&self) -> Vec<u64> {
+        self.seed_range_iter()
+            .map(|s| self.process_seed(s))
+            .collect()
+    }
+
+    pub fn seed_range_iter(&self) -> SeedIterator {
+        let mut result = SeedIterator::empty();
+        for pair in self.seeds.chunks(2) {
+            assert!(pair.len() == 2, "expected exactly 2 seeds, got {pair:?}");
+
+            let start = pair[0];
+            let end = start + pair[1];
+            result.add_range(start..end);
+        }
+
+        result
+    }
+
+    fn process_seed(&self, seed: u64) -> u64 {
         let mut result = seed;
         for map in &self.maps {
-            result = map.apply(result) as u32;
+            result = map.apply(result) as u64;
         }
         result
     }
 
-    fn parse(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         let blocks: Vec<_> = s.split("\n\n").collect();
 
         let seeds = blocks[0]
@@ -38,7 +103,7 @@ impl Almanac {
             .1
             .trim()
             .split_whitespace()
-            .map(|s| s.parse::<u32>().expect("not a number"))
+            .map(|s| s.parse::<u64>().expect("not a number"))
             .collect::<Vec<_>>();
 
         let maps: Vec<_> = blocks[1..]
@@ -53,7 +118,7 @@ impl Almanac {
                     .map(|line| {
                         let numbers = line
                             .split_whitespace()
-                            .map(|s| s.parse::<u32>().expect("not a number"))
+                            .map(|s| s.parse::<u64>().expect("not a number"))
                             .collect::<Vec<_>>();
                         assert!(numbers.len() == 3, "expected exactly 3 numbers");
                         Conversion::new(numbers[0], numbers[1], numbers[2])
@@ -77,7 +142,7 @@ impl Map {
         Self { conversions }
     }
 
-    fn apply(&self, input: u32) -> u32 {
+    fn apply(&self, input: u64) -> u64 {
         for conversion in &self.conversions {
             if let Some(result) = conversion.attempt(input) {
                 return result;
@@ -88,22 +153,24 @@ impl Map {
 }
 
 struct Conversion {
-    range: Range,
-    offset: u32,
-    apply: Box<dyn Fn(u32) -> u32>,
+    start: u64,
+    end: u64,
+    offset: u64,
+    apply: Box<dyn Fn(u64) -> u64>,
 }
 
 impl std::fmt::Debug for Conversion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Conversion")
-            .field("range", &self.range)
+            .field("start", &self.start)
+            .field("end", &self.end)
             .field("offset", &self.offset)
             .finish()
     }
 }
 
 impl Conversion {
-    fn new(destination: u32, source: u32, length: u32) -> Self {
+    fn new(destination: u64, source: u64, length: u64) -> Self {
         let offset = if destination > source {
             destination - source
         } else {
@@ -111,33 +178,35 @@ impl Conversion {
         };
 
         let combine = if destination > source {
-            u32::saturating_add
+            u64::saturating_add
         } else {
-            u32::saturating_sub
+            u64::saturating_sub
         };
 
         let op = Box::new(move |i| (combine)(i, offset));
-        let range = Range::new(source, source + length);
+        let start = source;
+        let end = source + length;
 
         Self {
-            range,
+            start,
+            end,
             offset,
             apply: op,
         }
     }
 
-    fn matches(&self, input: u32) -> bool {
-        self.range.includes(input)
+    fn matches(&self, input: u64) -> bool {
+        input >= self.start && input < self.end
     }
 
-    fn apply(&self, input: u32) -> u32 {
+    fn apply(&self, input: u64) -> u64 {
         if self.matches(input) {
             return (self.apply)(input);
         }
         input
     }
 
-    fn attempt(&self, input: u32) -> Option<u32> {
+    fn attempt(&self, input: u64) -> Option<u64> {
         if self.matches(input) {
             return Some((self.apply)(input));
         }
@@ -148,6 +217,16 @@ impl Conversion {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn part1_example() {
+        assert_eq!(part1(EXAMPLE), 35);
+    }
+
+    #[test]
+    fn part1_real() {
+        assert_eq!(part1(REAL), 173706076);
+    }
 
     #[test]
     fn almanac_process_seed() {
