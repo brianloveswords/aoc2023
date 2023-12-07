@@ -144,13 +144,9 @@ n^2 - n = x
 
 110 = n^2 - n
 0 = n^2 - n - 110
-``
-
-ah shit, quadratic equations.
-
 ```
-x = (-b + sqrt((b*b) - 4*a*c)) / 2a
-```
+
+ah shit we got a polynomial. time to look up the quadratic equation
 
 ## puzzle
 
