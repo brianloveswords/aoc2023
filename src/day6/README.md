@@ -37,8 +37,45 @@
 - start with full simulation
     - easier to prove correct
     - use that as oracle to write the trickier work skipping version
+- not even going to bother with parsing! just gonna type it in by hand.
+
+### part 2
+
+alright definitely gonna need that work skipping version. I set up the oracle test and I'm and benchmarking changes.
+
+```sh
+cargo test --lib day6 && cargo bench count_record_beaters
+```
+
+#### attempt #1: failed
+
+all of the winning attempts will be in a row. we can keep track of when we enter the winning zone, and then bail when we exit the winning zone.
+
+```diff
+for charge in 1..time {
+    let speed = charge;
+    if (time - charge) * speed > record {
+        count += 1;
++    } else {
++        if count > 0 {
++            break;
++        }
++    }
+}
+```
+
+the extra branching turns out to be more expensive than the extra work!
+
+```
+count_record_beaters    time:   [45.338 µs 45.395 µs 45.505 µs]
+                        change: [+55.434% +55.551% +55.717%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+```
+
 
 ## puzzle
+
+### part 1
 
 The ferry quickly brings you across Island Island. After asking around, you discover that there is indeed normally a large pile of sand somewhere near here, but you don't see anything besides lots of water and the small island where the ferry has docked.
 
@@ -85,3 +122,25 @@ In the third race, you could hold the button for at least 11 milliseconds and no
 To see how much margin of error you have, determine the number of ways you can beat the record in each race; in this example, if you multiply these values together, you get 288 (4 * 8 * 9).
 
 Determine the number of ways you could beat the record in each race. What do you get if you multiply these numbers together?
+
+### part 2
+
+As the race is about to start, you realize the piece of paper with race times and record distances you got earlier actually just has very bad kerning. There's really only one race - ignore the spaces between the numbers on each line.
+
+So, the example from before:
+
+```
+Time:      7  15   30
+Distance:  9  40  200
+```
+
+...now instead means this:
+
+```
+Time:      71530
+Distance:  940200
+```
+
+Now, you have to figure out how many ways there are to win this single race. In this example, the race lasts for 71530 milliseconds and the record distance you need to beat is 940200 millimeters. You could hold the button anywhere from 14 to 71516 milliseconds and beat the record, a total of 71503 ways!
+
+How many ways can you beat the record in this one much longer race?
