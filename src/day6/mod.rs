@@ -70,7 +70,7 @@ impl Race {
     }
 
     pub fn count_winners(&self) -> usize {
-        self.count_winners_constant()
+        self.count_winners_fast()
     }
 
     pub fn count_winners_oracle(&self) -> usize {
@@ -181,29 +181,29 @@ mod tests {
         assert_eq!(result, 30077773);
     }
 
-    // proptest! {
-    //     #[test]
-    //     fn race_count_record_beaters(time in 7..30, record in 9..200) {
-    //         let race = Race::new(Time(time as usize), Record(record as usize));
-    //         assert_eq!(
-    //             race.count_winners(),
-    //             race.count_winners_oracle(),
-    //         )
-    //     }
-    // }
+    proptest! {
+        #[test]
+        fn race_count_record_beaters(time in 7..30, record in 9..200) {
+            let race = Race::new(Time(time as usize), Record(record as usize));
+            assert_eq!(
+                race.count_winners(),
+                race.count_winners_oracle(),
+            )
+        }
+    }
 
-    // #[test]
-    // fn race_count_record_beaters_oracle() {
-    //     let race = Race::new(Time(7), Record(9));
-    //     let winners = race.count_winners_oracle();
-    //     assert_eq!(winners, 4);
+    #[test]
+    fn race_count_record_beaters_oracle() {
+        let race = Race::new(Time(7), Record(9));
+        let winners = race.count_winners_oracle();
+        assert_eq!(winners, 4);
 
-    //     let race = Race::new(Time(15), Record(40));
-    //     let winners = race.count_winners_oracle();
-    //     assert_eq!(winners, 8);
+        let race = Race::new(Time(15), Record(40));
+        let winners = race.count_winners_oracle();
+        assert_eq!(winners, 8);
 
-    //     let race = Race::new(Time(30), Record(200));
-    //     let winners = race.count_winners_oracle();
-    //     assert_eq!(winners, 9);
-    // }
+        let race = Race::new(Time(30), Record(200));
+        let winners = race.count_winners_oracle();
+        assert_eq!(winners, 9);
+    }
 }
