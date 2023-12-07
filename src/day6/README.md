@@ -43,10 +43,6 @@
 
 alright definitely gonna need that work skipping version. (_edit: no I won't, but I still had fun making it_) I set up the oracle test and I'm and benchmarking changes.
 
-```sh
-cargo test --lib day6 && cargo bench count_record_beaters
-```
-
 #### attempt #1: failed
 
 all of the winning attempts will be in a row. we can keep track of when we enter the winning zone, and then bail when we exit the winning zone.
@@ -67,9 +63,9 @@ for charge in 1..time {
 the extra branching turns out to be more expensive than the extra work!
 
 ```
-count_record_beaters    time:   [45.338 µs 45.395 µs 45.505 µs]
-                        change: [+55.434% +55.551% +55.717%] (p = 0.00 < 0.05)
-                        Performance has regressed.
+count_winners    time:   [45.338 µs 45.395 µs 45.505 µs]
+                 change: [+55.434% +55.551% +55.717%] (p = 0.00 < 0.05)
+                 Performance has regressed.
 ```
 
 #### attempt #2: success
