@@ -1,9 +1,9 @@
 use aoc2023::day6;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("count_record_beaters", |b| {
-        b.iter(|| day6::EXAMPLE_PART2.count_record_beaters())
+    c.bench_function("day6::part1", |b| {
+        b.iter(|| day6::part1(black_box(&day6::REAL)))
     });
 }
 

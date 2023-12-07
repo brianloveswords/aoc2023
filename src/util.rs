@@ -1,3 +1,13 @@
+pub fn solve_quadratic(a: i32, b: i32, c: i32) -> (f64, f64) {
+    let a = a as f64;
+    let b = b as f64;
+    let c = c as f64;
+    let discriminant = b.powi(2) - 4.0 * a * c;
+    let x1 = (-b + discriminant.sqrt()) / (2.0 * a);
+    let x2 = (-b - discriminant.sqrt()) / (2.0 * a);
+    (x1, x2)
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Range {
     start: u32,

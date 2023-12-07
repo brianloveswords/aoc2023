@@ -41,7 +41,7 @@
 
 ### part 2
 
-alright definitely gonna need that work skipping version. I set up the oracle test and I'm and benchmarking changes.
+alright definitely gonna need that work skipping version. (_edit: no I won't, but I still had fun making it_) I set up the oracle test and I'm and benchmarking changes.
 
 ```sh
 cargo test --lib day6 && cargo bench count_record_beaters
@@ -72,6 +72,85 @@ count_record_beaters    time:   [45.338 µs 45.395 µs 45.505 µs]
                         Performance has regressed.
 ```
 
+#### attempt #2: success
+
+alright, so what if we could figure out how to break without an extra condition?
+
+we know something about the data: the optimal strategy is to charge the boat for half the race time. if we jump there, we can count unconditionally, then bail when the record is _not_ beat.
+
+we'd have skipped over half the winners, so we'd double the result (taking into account whether the time was even or odd).
+
+the bounds and adjustment math took me a few tries to get right, I always find this off-by-1 stuff fiddly. fortunately I was able to do debug this pretty mechanically because I had the oracle to property testing against. I really like this technique for refactoring and perfomance tuning!
+
+here's the thing—I didn't really need to do this. I wasn't looking closely enough at the input and thought my `n` was much larger. 41,968,894 iterations is more than managable!
+
+```
+# oracle
+Benchmark 1: target/release/main
+  Time (mean ± σ):      18.9 ms ±   0.2 ms    [User: 17.8 ms, System: 0.6 ms]
+  Range (min … max):    18.2 ms …  19.7 ms    136 runs
+
+# work skipping
+Benchmark 1: target/release/main
+  Time (mean ± σ):      14.1 ms ±   0.3 ms    [User: 13.0 ms, System: 0.6 ms]
+  Range (min … max):    13.5 ms …  15.2 ms    175 runs
+```
+
+my efforts did net me about 25% speedup on the large puzzle input! but we're talking milliseconds.
+
+what about if the `time` _was_ as bad as I first thought? I bumped the time up from millions to billions, which is how I originally misread it, to see if my instinct was right.
+
+```
+# oracle (independent of record)
+Benchmark 1: target/release/main
+  Time (mean ± σ):     17.175 s ±  0.013 s    [User: 17.086 s, System: 0.004 s]
+  Range (min … max):   17.159 s … 17.205 s    10 runs
+
+# work skipping, original record
+Benchmark 1: target/release/main
+  Time (mean ± σ):      3.311 s ±  0.002 s    [User: 3.300 s, System: 0.001 s]
+  Range (min … max):    3.309 s …  3.315 s    10 runs
+```
+
+so here is where we get some gains, but we're still scaling linearly on size of `time`. we _could_ make this `O(log n)` by binary searching our way to the other bound, but I think we can do even better by exploring the mathematical relationship between the record and the optimal distance.
+
+#### attempt #3: mathradical
+
+```
+record: 99mm
+max: 210mm
+
+diff: 111mm
+
+steps: ??? (eventually: 11)
+
+2 4 6 8 10 12 14 16 18 20 22
+
+2->6->12->20->30->42->56->72->90->110->132
+1  2   3   4   5   6   7   8   9   10   11
+
+10*11=110 (+20)
+10*9 =90
+
+
+11*12=132 (+22)
+11*10=110
+
+
+n * (n+1) = x + 2n
+n * (n-1) = x
+
+n^2 - n = x
+
+110 = n^2 - n
+0 = n^2 - n - 110
+``
+
+ah shit, quadratic equations.
+
+```
+x = (-b + sqrt((b*b) - 4*a*c)) / 2a
+```
 
 ## puzzle
 
