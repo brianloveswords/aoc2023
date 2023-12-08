@@ -170,10 +170,58 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hand_get_type() {
+    fn hand_get_type_five_of_a_kind() {
+        let hand = Hand::parse("TTTTT");
+        let result = hand.get_type();
+        let expected = HandType::FiveOfAKind;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn hand_get_type_four_of_a_kind() {
+        let hand = Hand::parse("TTTT3");
+        let result = hand.get_type();
+        let expected = HandType::FourOfAKind;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn hand_get_type_full_house() {
+        let hand = Hand::parse("TTT33");
+        let result = hand.get_type();
+        let expected = HandType::FullHouse;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn hand_get_type_three_of_a_kind() {
+        let hand = Hand::parse("TTT32");
+        let result = hand.get_type();
+        let expected = HandType::ThreeOfAKind;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn hand_get_type_two_pair() {
+        let hand = Hand::parse("TT332");
+        let result = hand.get_type();
+        let expected = HandType::TwoPair;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn hand_get_type_one_pair() {
         let hand = Hand::parse("32T3K");
         let result = hand.get_type();
         let expected = HandType::OnePair;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn hand_get_type_high_card() {
+        let hand = Hand::parse("32TKA");
+        let result = hand.get_type();
+        let expected = HandType::HighCard;
         assert_eq!(result, expected);
     }
 
