@@ -1,18 +1,49 @@
 #![allow(dead_code)]
 
-use std::collections::BTreeMap;
+use std::{cmp::Ordering, collections::BTreeMap};
 
 pub fn part1() -> usize {
     todo!();
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Ord, Hash, Clone, Copy)]
 pub struct Hand {
     first: Card,
     second: Card,
     third: Card,
     fourth: Card,
     fifth: Card,
+}
+
+impl PartialOrd for Hand {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let ord = self.first.cmp(&other.first);
+        if ord != Ordering::Equal {
+            return Some(ord);
+        }
+
+        let ord = self.second.cmp(&other.second);
+        if ord != Ordering::Equal {
+            return Some(ord);
+        }
+
+        let ord = self.third.cmp(&other.third);
+        if ord != Ordering::Equal {
+            return Some(ord);
+        }
+
+        let ord = self.fourth.cmp(&other.fourth);
+        if ord != Ordering::Equal {
+            return Some(ord);
+        }
+
+        let ord = self.fifth.cmp(&other.fifth);
+        if ord != Ordering::Equal {
+            return Some(ord);
+        }
+
+        None
+    }
 }
 
 impl Hand {
@@ -140,6 +171,10 @@ impl HandBet {
         let bet = Bet::parse(parts.next().expect("missing bet"));
         Self { hand, bet }
     }
+
+    fn winnings(&self, rank: usize) -> usize {
+        self.bet.0 * rank
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -154,20 +189,62 @@ impl CardTable {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 enum HandType {
-    FiveOfAKind,
-    FourOfAKind,
-    FullHouse,
-    ThreeOfAKind,
-    TwoPair,
-    OnePair,
     HighCard,
+    OnePair,
+    TwoPair,
+    ThreeOfAKind,
+    FullHouse,
+    FourOfAKind,
+    FiveOfAKind,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // #[test]
+    // fn card_table_winnings() {
+    //     let table = CardTable::parse("TTTTT 10\nTTTT3 10\nTTT33 10");
+    //     let result = table.winnings();
+    //     let expected = 6;
+    //     assert_eq!(result, expected);
+    // }
+
+    #[test]
+    fn hand_ordering_greater() {
+        let hand1 = Hand::parse("TTTTT");
+        let hand2 = Hand::parse("TTTT3");
+        let result = hand1.cmp(&hand2);
+        let expected = Ordering::Greater;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn hand_ordering_less() {
+        let hand1 = Hand::parse("2AAAA");
+        let hand2 = Hand::parse("A2222");
+        let result = hand1.cmp(&hand2);
+        let expected = Ordering::Less;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn card_ordering() {
+        assert!(Card::Two < Card::Three);
+        assert!(Card::King < Card::Ace);
+    }
+
+    #[test]
+    fn hand_type_ordering() {
+        assert!(HandType::FiveOfAKind > HandType::FourOfAKind);
+        assert!(HandType::FourOfAKind > HandType::FullHouse);
+        assert!(HandType::FullHouse > HandType::ThreeOfAKind);
+        assert!(HandType::ThreeOfAKind > HandType::TwoPair);
+        assert!(HandType::TwoPair > HandType::OnePair);
+        assert!(HandType::OnePair > HandType::HighCard);
+    }
 
     #[test]
     fn hand_get_type_five_of_a_kind() {
