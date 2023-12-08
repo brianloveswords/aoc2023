@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::BTreeMap};
+use std::{cmp::Ordering, collections::BTreeMap, ops::Index};
 
 pub const EXAMPLE: &str = include_str!("../../inputs/examples/day7.txt");
 pub const REAL: &str = include_str!("../../inputs/real/day7.txt");
@@ -48,9 +48,13 @@ impl MatchCounter {
     fn add(&mut self, n: usize) {
         *self.0.entry(n).or_default() += 1;
     }
+}
 
-    fn check(&self, n: usize) -> bool {
-        self.0.get(&n).map(|&n| n == 0).unwrap_or(false)
+impl Index<usize> for MatchCounter {
+    type Output = usize;
+
+    fn index(&self, count: usize) -> &Self::Output {
+        self.0.get(&count).unwrap_or(&0)
     }
 }
 
@@ -76,43 +80,31 @@ impl Hand {
         }
     }
 
-    pub fn parse_no_cache(s: &str) -> Self {
-        let mut cards = s.chars();
-        let first = Card::parse(cards.next().unwrap());
-        let second = Card::parse(cards.next().unwrap());
-        let third = Card::parse(cards.next().unwrap());
-        let fourth = Card::parse(cards.next().unwrap());
-        let fifth = Card::parse(cards.next().unwrap());
-
-        if let Some(c) = cards.next() {
-            panic!("too many cards, found trailing {c}");
-        }
-
-        Self::new(first, second, third, fourth, fifth)
-    }
-
     pub fn parse(s: &str) -> Self {
-        let mut this = Self::parse_no_cache(s);
-        this.pre_cache_type();
-        this
+        Self::inner_parse(s, Card::parse)
     }
 
     pub fn parse_with_jokers(s: &str) -> Self {
-        let mut this = Self::parse_no_cache(s);
-        this.jokerify();
-        this
+        Self::inner_parse(s, Card::parse_with_jokers)
     }
 
-    fn jokerify(&mut self) {
-        self.type_ = None;
+    fn inner_parse(s: &str, builder: fn(char) -> Card) -> Self {
+        let mut this = {
+            let mut cards = s.chars();
+            let first = builder(cards.next().unwrap());
+            let second = builder(cards.next().unwrap());
+            let third = builder(cards.next().unwrap());
+            let fourth = builder(cards.next().unwrap());
+            let fifth = builder(cards.next().unwrap());
 
-        self.first.jokerify();
-        self.second.jokerify();
-        self.third.jokerify();
-        self.fourth.jokerify();
-        self.fifth.jokerify();
+            if let Some(c) = cards.next() {
+                panic!("too many cards, found trailing {c}");
+            }
 
-        self.pre_cache_type();
+            Self::new(first, second, third, fourth, fifth)
+        };
+        this.pre_cache_type();
+        this
     }
 
     fn cards(&self) -> [Card; 5] {
@@ -145,15 +137,15 @@ impl Hand {
         // matching cards?", so if we had a FiveOfAKind, we'd have
         // a map with a single entry of (5, 1). if we had a FullHouse,
         // we'd have a map with two entries of (2, 1) and (3, 1).
-        let mut count: BTreeMap<usize, usize> = BTreeMap::new();
+        let mut count = MatchCounter::new();
         for (_, n) in seen {
-            *count.entry(n).or_default() += 1;
+            count.add(n);
         }
 
         use HandType::*;
         use Jokers::*;
 
-        if count.get(&1) == Some(&5) {
+        if count[1] == 5 {
             return match jokers {
                 _____ => HighCard,
                 J____ => OnePair,
@@ -164,7 +156,7 @@ impl Hand {
             };
         }
 
-        if count.get(&2) == Some(&1) && count.get(&1) == Some(&3) {
+        if count[2] == 1 && count[1] == 3 {
             return match jokers {
                 _____ => OnePair,
                 J____ => ThreeOfAKind,
@@ -175,7 +167,7 @@ impl Hand {
             };
         }
 
-        if count.get(&2) == Some(&2) && count.get(&1) == Some(&1) {
+        if count[2] == 2 && count[1] == 1 {
             return match jokers {
                 _____ => TwoPair,
                 J____ => FullHouse,
@@ -186,7 +178,7 @@ impl Hand {
             };
         }
 
-        if count.get(&3) == Some(&1) && count.get(&1) == Some(&2) {
+        if count[3] == 1 && count[1] == 2 {
             return match jokers {
                 _____ => ThreeOfAKind,
                 J____ => FourOfAKind,
@@ -197,7 +189,7 @@ impl Hand {
             };
         }
 
-        if count.get(&3) == Some(&1) && count.get(&2) == Some(&1) {
+        if count[3] == 1 && count[2] == 1 {
             return match jokers {
                 _____ => FullHouse,
                 J____ => panic!("impossible: 1 joker, FullHouse"),
@@ -208,7 +200,7 @@ impl Hand {
             };
         }
 
-        if count.get(&4) == Some(&1) && count.get(&1) == Some(&1) {
+        if count[4] == 1 && count[1] == 1 {
             return match jokers {
                 _____ => FourOfAKind,
                 J____ => FiveOfAKind,
@@ -219,7 +211,7 @@ impl Hand {
             };
         }
 
-        if count.get(&5) == Some(&1) {
+        if count[5] == 1 {
             return FiveOfAKind;
         }
 
@@ -259,7 +251,7 @@ impl PartialOrd for Hand {
             return Some(ord);
         }
 
-        None
+        Some(Ordering::Equal)
     }
 }
 
@@ -282,8 +274,16 @@ pub enum Card {
 }
 
 impl Card {
-    fn parse(s: char) -> Self {
-        match s {
+    fn parse_with_jokers(c: char) -> Self {
+        Self::inner_parse(c, Self::Joker)
+    }
+
+    fn parse(c: char) -> Self {
+        Self::inner_parse(c, Self::Jack)
+    }
+
+    fn inner_parse(c: char, j: Self) -> Self {
+        match c {
             '2' => Self::Two,
             '3' => Self::Three,
             '4' => Self::Four,
@@ -293,17 +293,11 @@ impl Card {
             '8' => Self::Eight,
             '9' => Self::Nine,
             'T' => Self::Ten,
-            'J' => Self::Jack,
+            'J' => j,
             'Q' => Self::Queen,
             'K' => Self::King,
             'A' => Self::Ace,
-            _ => panic!("invalid card: {s}"),
-        }
-    }
-
-    fn jokerify(&mut self) {
-        if *self == Self::Jack {
-            *self = Self::Joker;
+            _ => panic!("invalid card: {c}"),
         }
     }
 }
@@ -343,12 +337,15 @@ impl HandBet {
         Self { hand, bet }
     }
 
-    fn winnings(&self, rank: usize) -> usize {
-        self.bet.0 * rank
+    fn parse_with_jokers(s: &str) -> Self {
+        let mut parts = s.split_whitespace();
+        let hand = Hand::parse_with_jokers(parts.next().expect("missing hand"));
+        let bet = Bet::parse(parts.next().expect("missing bet"));
+        Self { hand, bet }
     }
 
-    fn jokerify(&mut self) {
-        self.hand.jokerify();
+    fn winnings(&self, rank: usize) -> usize {
+        self.bet.0 * rank
     }
 }
 
@@ -363,16 +360,9 @@ impl CardTable {
         Self { hands }
     }
 
-    fn parse_with_jokers(s: &str) -> Self {
-        let mut table = Self::parse(s);
-        table.jokerify();
-        table
-    }
-
-    fn jokerify(&mut self) {
-        for hand in &mut self.hands {
-            hand.jokerify();
-        }
+    pub fn parse_with_jokers(s: &str) -> Self {
+        let hands = s.lines().map(HandBet::parse_with_jokers).collect();
+        Self { hands }
     }
 
     fn winnings(&mut self) -> usize {
@@ -468,9 +458,7 @@ mod tests {
 
     #[test]
     fn hand_get_joker_type_five_of_a_kind() {
-        let mut hand = Hand::parse("TTJJJ");
-        hand.jokerify();
-
+        let hand = Hand::parse_with_jokers("TTJJJ");
         let result = hand.get_type();
         let expected = HandType::FiveOfAKind;
         assert_eq!(result, expected);
