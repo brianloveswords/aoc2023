@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::collections::BTreeMap;
+
 pub fn part1() -> usize {
     todo!();
 }
@@ -34,9 +36,51 @@ impl Hand {
             fifth,
         }
     }
+
+    fn cards(&self) -> [Card; 5] {
+        [self.first, self.second, self.third, self.fourth, self.fifth]
+    }
+
+    fn get_type(&self) -> HandType {
+        let mut seen: BTreeMap<Card, usize> = BTreeMap::new();
+        for card in self.cards() {
+            *seen.entry(card).or_default() += 1;
+        }
+
+        let mut count: BTreeMap<usize, usize> = BTreeMap::new();
+        for (_, n) in seen {
+            *count.entry(n).or_default() += 1;
+        }
+
+        if count.get(&5).is_some() {
+            return HandType::FiveOfAKind;
+        }
+
+        if count.get(&4).is_some() {
+            return HandType::FourOfAKind;
+        }
+
+        if count.get(&3).is_some() && count.get(&2).is_some() {
+            return HandType::FullHouse;
+        }
+
+        if count.get(&3).is_some() {
+            return HandType::ThreeOfAKind;
+        }
+
+        if count.get(&2).unwrap_or(&0) == &2 {
+            return HandType::TwoPair;
+        }
+
+        if count.get(&2).is_some() {
+            return HandType::OnePair;
+        }
+
+        HandType::HighCard
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Card {
     Two,
     Three,
@@ -110,9 +154,28 @@ impl CardTable {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+enum HandType {
+    FiveOfAKind,
+    FourOfAKind,
+    FullHouse,
+    ThreeOfAKind,
+    TwoPair,
+    OnePair,
+    HighCard,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hand_get_type() {
+        let hand = Hand::parse("32T3K");
+        let result = hand.get_type();
+        let expected = HandType::OnePair;
+        assert_eq!(result, expected);
+    }
 
     #[test]
     fn card_table_parse() {
