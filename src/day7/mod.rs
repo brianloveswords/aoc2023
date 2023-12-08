@@ -74,9 +74,49 @@ impl Card {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+struct Bet(usize);
+
+impl Bet {
+    fn parse(s: &str) -> Self {
+        Self(s.parse().expect(&format!("invalid bet {s}")))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+struct HandBet {
+    hand: Hand,
+    bet: Bet,
+}
+
+impl HandBet {
+    fn parse(s: &str) -> Self {
+        let mut parts = s.split_whitespace();
+        let hand = Hand::parse(parts.next().expect("missing hand"));
+        let bet = Bet::parse(parts.next().expect("missing bet"));
+        Self { hand, bet }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hand_bet_parse() {
+        let result = HandBet::parse("32T3K  765");
+        let expected = HandBet {
+            hand: Hand {
+                first: Card::Three,
+                second: Card::Two,
+                third: Card::Ten,
+                fourth: Card::Three,
+                fifth: Card::King,
+            },
+            bet: Bet(765),
+        };
+        assert_eq!(result, expected);
+    }
 
     #[test]
     fn hand_parse() {
