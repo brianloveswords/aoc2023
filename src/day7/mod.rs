@@ -47,7 +47,7 @@ enum Card {
     Eight,
     Nine,
     Ten,
-    Knight,
+    Jack,
     Queen,
     King,
     Ace,
@@ -65,7 +65,7 @@ impl Card {
             '8' => Self::Eight,
             '9' => Self::Nine,
             'T' => Self::Ten,
-            'J' => Self::Knight,
+            'J' => Self::Jack,
             'Q' => Self::Queen,
             'K' => Self::King,
             'A' => Self::Ace,
@@ -98,9 +98,51 @@ impl HandBet {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+struct CardTable {
+    hands: Vec<HandBet>,
+}
+
+impl CardTable {
+    fn parse(s: &str) -> Self {
+        let hands = s.lines().map(HandBet::parse).collect();
+        Self { hands }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn card_table_parse() {
+        let result = CardTable::parse("32T3K  765\nT55J5 684");
+        let expected = CardTable {
+            hands: vec![
+                HandBet {
+                    hand: Hand {
+                        first: Card::Three,
+                        second: Card::Two,
+                        third: Card::Ten,
+                        fourth: Card::Three,
+                        fifth: Card::King,
+                    },
+                    bet: Bet(765),
+                },
+                HandBet {
+                    hand: Hand {
+                        first: Card::Ten,
+                        second: Card::Five,
+                        third: Card::Five,
+                        fourth: Card::Jack,
+                        fifth: Card::Five,
+                    },
+                    bet: Bet(684),
+                },
+            ],
+        };
+        assert_eq!(result, expected);
+    }
 
     #[test]
     fn hand_bet_parse() {
