@@ -74,6 +74,30 @@
         - TwoPair: impossible
         - OnePair: impossible
         - HighCard: impossible
+- making an enum for this worked great, got it quickly
+
+
+### performance
+
+both parts run in 4ms so there's not much we need to optimize here, but if we were looking at much larger tables we could run into issues because we have to do a lot of recalculating of `get_type()` during the sort operation.
+
+if we precache that, we can get some significant gains:
+
+```
+day7::part2             time:   [645.23 µs 645.98 µs 646.69 µs]
+                        change: [-84.444% -84.405% -84.369%] (p = 0.00 < 0.05)
+                        Performance has improved.
+```
+
+and just to squeeze a tiny bit more out, I reordered the conditionals in
+`get_type()` so the more common arrangements are tested first.
+
+```
+day7::part2             time:   [628.08 µs 629.27 µs 630.79 µs]
+                        change: [-3.0382% -2.3718% -1.9509%] (p = 0.00 < 0.05)
+                        Performance has improved
+```
+
 
 ## puzzle
 
