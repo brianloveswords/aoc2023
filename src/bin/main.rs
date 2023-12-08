@@ -1,8 +1,5 @@
-use aoc2023::day6::{Race, Record, Time};
+use aoc2023::day7;
 
 fn main() {
-    let race = Race::new(Time(2503), Record(21));
-    let r1 = race.count_winners_constant();
-    let r2 = race.count_winners_oracle();
-    println!("{} == {}", r1, r2);
+    println!("day7::part1: {}", day7::part1(&day7::REAL));
 }

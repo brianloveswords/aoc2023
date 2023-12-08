@@ -2,8 +2,11 @@
 
 use std::{cmp::Ordering, collections::BTreeMap};
 
-pub fn part1() -> usize {
-    todo!();
+pub const EXAMPLE: &str = include_str!("../../inputs/examples/day7.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day7.txt");
+
+pub fn part1(s: &str) -> usize {
+    CardTable::parse(s).winnings()
 }
 
 #[derive(Debug, PartialEq, Eq, Ord, Hash, Clone, Copy)]
@@ -17,6 +20,11 @@ pub struct Hand {
 
 impl PartialOrd for Hand {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let ord = self.get_type().partial_cmp(&other.get_type());
+        if ord != Some(Ordering::Equal) {
+            return ord;
+        }
+
         let ord = self.first.cmp(&other.first);
         if ord != Ordering::Equal {
             return Some(ord);
@@ -164,6 +172,18 @@ struct HandBet {
     bet: Bet,
 }
 
+impl PartialOrd for HandBet {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.hand.partial_cmp(&other.hand)
+    }
+}
+
+impl Ord for HandBet {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.hand.cmp(&other.hand)
+    }
+}
+
 impl HandBet {
     fn parse(s: &str) -> Self {
         let mut parts = s.split_whitespace();
@@ -187,6 +207,20 @@ impl CardTable {
         let hands = s.lines().map(HandBet::parse).collect();
         Self { hands }
     }
+
+    fn winnings(&mut self) -> usize {
+        let mut rank = self.hands.len();
+        self.hands.sort();
+        self.hands.reverse();
+
+        let mut winnings = 0;
+        for hand in &self.hands {
+            winnings += hand.winnings(rank);
+            rank -= 1;
+        }
+
+        winnings
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
@@ -204,13 +238,13 @@ enum HandType {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn card_table_winnings() {
-    //     let table = CardTable::parse("TTTTT 10\nTTTT3 10\nTTT33 10");
-    //     let result = table.winnings();
-    //     let expected = 6;
-    //     assert_eq!(result, expected);
-    // }
+    #[test]
+    fn card_table_winnings() {
+        let mut table = CardTable::parse(EXAMPLE);
+        let result = table.winnings();
+        let expected = 6440;
+        assert_eq!(result, expected);
+    }
 
     #[test]
     fn hand_ordering_greater() {
