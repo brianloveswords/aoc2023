@@ -29,7 +29,55 @@
     - winnings
         - strongest hand is highest rank
 
+### part 2
+
+- `J`s are now jokers
+- jokers are the weakest card
+- jokers work to make the strongest hand
+- there are only 5 strategies to think about
+    - 1 joker:
+        - FiveOfAKind: impossible
+        - FourOfAKind: FiveOfAKind
+        - FullHouse: impossible
+        - ThreeOfAKind: FourOfAKind
+        - TwoPair: FullHouse
+        - OnePair: ThreeOfAKind
+        - HighCard: OnePair
+    - 2 joker:
+        - FiveOfAKind: impossible
+        - FourOfAKind: impossible
+        - FullHouse: FiveOfAKind
+        - ThreeOfAKind: impossible
+        - TwoPair: FourOfAKind
+        - OnePair: ThreeOfAKind
+        - HighCard: impossible
+    - 3 joker:
+        - FiveOfAKind: impossible
+        - FourOfAKind: impossible
+        - FullHouse: FiveOfAKind
+        - ThreeOfAKind: FourOfAKind
+        - TwoPair: impossible
+        - OnePair: impossible
+        - HighCard: impossible
+    - 4 joker
+        - FiveOfAKind: impossible
+        - FourOfAKind: FiveOfAKind
+        - FullHouse: impossible
+        - ThreeOfAKind: impossible
+        - TwoPair: impossible
+        - OnePair: impossible
+        - HighCard: impossible
+    - 5 joker:
+        - FiveOfAKind: FiveOfAKind
+        - FourOfAKind: impossible
+        - ThreeOfAKind: impossible
+        - TwoPair: impossible
+        - OnePair: impossible
+        - HighCard: impossible
+
 ## puzzle
+
+### part 1
 
 Your all-expenses-paid trip turns out to be a one-way, five-minute ride in an airship. (At least it's a cool airship!) It drops you off at the edge of a vast desert and descends back to Island Island.
 
@@ -86,3 +134,25 @@ So, the first step is to put the hands in order of strength:
 Now, you can determine the total winnings of this set of hands by adding up the result of multiplying each hand's bid with its rank (765 * 1 + 220 * 2 + 28 * 3 + 684 * 4 + 483 * 5). So the total winnings in this example are 6440.
 
 Find the rank of every hand in your set. What are the total winnings?
+
+### part 2
+
+To make things a little more interesting, the Elf introduces one additional rule. Now, J cards are jokers - wildcards that can act like whatever card would make the hand the strongest type possible.
+
+To balance this, J cards are now the weakest individual cards, weaker even than 2. The other cards stay in the same order: A, K, Q, T, 9, 8, 7, 6, 5, 4, 3, 2, J.
+
+J cards can pretend to be whatever card is best for the purpose of determining hand type; for example, QJJQ2 is now considered four of a kind. However, for the purpose of breaking ties between two hands of the same type, J is always treated as J, not the card it's pretending to be: JKKK2 is weaker than QQQQ2 because J is weaker than Q.
+
+Now, the above example goes very differently:
+
+32T3K 765
+T55J5 684
+KK677 28
+KTJJT 220
+QQQJA 483
+32T3K is still the only one pair; it doesn't contain any jokers, so its strength doesn't increase.
+KK677 is now the only two pair, making it the second-weakest hand.
+T55J5, KTJJT, and QQQJA are now all four of a kind! T55J5 gets rank 3, QQQJA gets rank 4, and KTJJT gets rank 5.
+With the new joker rule, the total winnings in this example are 5905.
+
+Using the new joker rule, find the rank of every hand in your set. What are the new total winnings?

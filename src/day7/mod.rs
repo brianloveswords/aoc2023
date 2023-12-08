@@ -54,6 +54,29 @@ impl PartialOrd for Hand {
     }
 }
 
+enum Jokers {
+    _____,
+    J____,
+    JJ___,
+    JJJ__,
+    JJJJ_,
+    JJJJJ,
+}
+
+impl Jokers {
+    fn from(n: usize) -> Self {
+        match n {
+            0 => Self::_____,
+            1 => Self::J____,
+            2 => Self::JJ___,
+            3 => Self::JJJ__,
+            4 => Self::JJJJ_,
+            5 => Self::JJJJJ,
+            _ => panic!("invalid number of jokers: {n}"),
+        }
+    }
+}
+
 impl Hand {
     pub fn parse(s: &str) -> Self {
         let mut cards = s.chars();
@@ -76,13 +99,26 @@ impl Hand {
         }
     }
 
+    fn become_the_joker(&mut self) -> Self {
+        self.first.jokerify();
+        self.second.jokerify();
+        self.third.jokerify();
+        self.fourth.jokerify();
+        self.fifth.jokerify();
+        *self
+    }
+
     fn cards(&self) -> [Card; 5] {
         [self.first, self.second, self.third, self.fourth, self.fifth]
     }
 
     fn get_type(&self) -> HandType {
+        let mut jokers = 0;
         let mut seen: BTreeMap<Card, usize> = BTreeMap::new();
         for card in self.cards() {
+            if card.is_joker() {
+                jokers += 1;
+            }
             *seen.entry(card).or_default() += 1;
         }
 
@@ -91,36 +127,83 @@ impl Hand {
             *count.entry(n).or_default() += 1;
         }
 
+        let jokers = Jokers::from(jokers);
+
         if count.get(&5).is_some() {
             return HandType::FiveOfAKind;
         }
 
+        use Jokers::*;
+
         if count.get(&4).is_some() {
-            return HandType::FourOfAKind;
+            return match jokers {
+                _____ => HandType::FourOfAKind,
+                J____ => HandType::FiveOfAKind,
+                JJ___ => panic!("impossible hand: 2 jokers, 4 of a kind"),
+                JJJ__ => panic!("impossible hand: 3 jokers, 4 of a kind"),
+                JJJJ_ => HandType::FiveOfAKind,
+                JJJJJ => panic!("impossible hand: 5 jokers, 4 of a kind"),
+            };
         }
 
         if count.get(&3).is_some() && count.get(&2).is_some() {
-            return HandType::FullHouse;
+            return match jokers {
+                _____ => HandType::FullHouse,
+                J____ => panic!("impossible hand: 1 joker, full house"),
+                JJ___ => HandType::FiveOfAKind,
+                JJJ__ => HandType::FiveOfAKind,
+                JJJJ_ => panic!("impossible hand: 4 jokers, full house"),
+                JJJJJ => panic!("impossible hand: 5 jokers, full house"),
+            };
         }
 
         if count.get(&3).is_some() {
-            return HandType::ThreeOfAKind;
+            return match jokers {
+                _____ => HandType::ThreeOfAKind,
+                J____ => HandType::FourOfAKind,
+                JJ___ => panic!("impossible hand: 2 jokers, 3 of a kind"),
+                JJJ__ => HandType::FourOfAKind,
+                JJJJ_ => HandType::FiveOfAKind,
+                JJJJJ => panic!("impossible hand: 5 jokers, 3 of a kind"),
+            };
         }
 
         if count.get(&2).unwrap_or(&0) == &2 {
-            return HandType::TwoPair;
+            return match jokers {
+                _____ => HandType::TwoPair,
+                J____ => HandType::FullHouse,
+                JJ___ => HandType::FourOfAKind,
+                JJJ__ => panic!("impossible hand: 3 jokers, 2 pair"),
+                JJJJ_ => panic!("impossible hand: 4 jokers, 2 pair"),
+                JJJJJ => panic!("impossible hand: 5 jokers, 2 pair"),
+            };
         }
 
         if count.get(&2).is_some() {
-            return HandType::OnePair;
+            return match jokers {
+                _____ => HandType::OnePair,
+                J____ => HandType::ThreeOfAKind,
+                JJ___ => HandType::ThreeOfAKind,
+                JJJ__ => panic!("impossible hand: 3 jokers, 1 pair"),
+                JJJJ_ => panic!("impossible hand: 4 jokers, 1 pair"),
+                JJJJJ => panic!("impossible hand: 5 jokers, 1 pair"),
+            };
         }
 
-        HandType::HighCard
+        return match jokers {
+            _____ => HandType::HighCard,
+            J____ => HandType::OnePair,
+            JJ___ => panic!("impossible hand: 2 jokers, high card"),
+            JJJ__ => panic!("impossible hand: 3 jokers, high card"),
+            JJJJ_ => panic!("impossible hand: 4 jokers, high card"),
+            JJJJJ => panic!("impossible hand: 5 jokers, high card"),
+        };
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Card {
+    Joker,
     Two,
     Three,
     Four,
@@ -153,6 +236,16 @@ impl Card {
             'K' => Self::King,
             'A' => Self::Ace,
             _ => panic!("invalid card: {s}"),
+        }
+    }
+
+    fn is_joker(&self) -> bool {
+        *self == Self::Joker
+    }
+
+    fn jokerify(&mut self) {
+        if *self == Self::Jack {
+            *self = Self::Joker;
         }
     }
 }
@@ -266,6 +359,7 @@ mod tests {
 
     #[test]
     fn card_ordering() {
+        assert!(Card::Joker < Card::Two);
         assert!(Card::Two < Card::Three);
         assert!(Card::King < Card::Ace);
     }
@@ -278,6 +372,14 @@ mod tests {
         assert!(HandType::ThreeOfAKind > HandType::TwoPair);
         assert!(HandType::TwoPair > HandType::OnePair);
         assert!(HandType::OnePair > HandType::HighCard);
+    }
+
+    #[test]
+    fn hand_get_joker_type_five_of_a_kind() {
+        let hand = Hand::parse("TTJJJ").become_the_joker();
+        let result = hand.get_type();
+        let expected = HandType::FiveOfAKind;
+        assert_eq!(result, expected);
     }
 
     #[test]
