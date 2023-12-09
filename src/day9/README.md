@@ -21,6 +21,35 @@
     - are not monotonic
 - ...so don't make make an algorithm that would assume otherwise
 
+### part 2
+
+- alright now we gotta go backwards.
+- can I just keep track of firsts
+
+```
+10  13  16  21  30  45
+   3   3   5   9  15
+     0   2   4   6
+       2   2   2
+
+
+10 - 3 - 0 - 2 = 5
+```
+
+- I can reduce the firsts with subtraction.
+- lemme make sure that works for the other examples
+
+```
+1   3   6  10  15  21
+  2   3   4   5   6
+    1   1   1   1
+      0   0   0
+```
+
+- okay for this one it doesnt, first should be 0 but getting -2
+- ahhh we need to start at the bottom and subtract the bottom from the one above it
+- so we need to reverse the firsts list and flip the subtraction in the reduce
+
 ## puzzle
 
 ### part 1
@@ -112,3 +141,25 @@ So, the next value of the third history is 68.
 If you find the next value for each history in this example and add them together, you get 114.
 
 Analyze your OASIS report and extrapolate the next value for each history. What is the sum of these extrapolated values?
+
+## part 2
+
+Of course, it would be nice to have even more history included in your report. Surely it's safe to just extrapolate backwards as well, right?
+
+For each history, repeat the process of finding differences until the sequence of differences is entirely zero. Then, rather than adding a zero to the end and filling in the next values of each previous sequence, you should instead add a zero to the beginning of your sequence of zeroes, then fill in new first values for each previous sequence.
+
+In particular, here is what the third example history looks like when extrapolating back in time:
+
+```
+5  10  13  16  21  30  45
+  5   3   3   5   9  15
+   -2   0   2   4   6
+      2   2   2   2
+        0   0   0
+```
+
+Adding the new values on the left side of each sequence from bottom to top eventually reveals the new left-most history value: 5.
+
+Doing this for the remaining example data above results in previous values of -3 for the first history and 0 for the second history. Adding all three new values together produces 2.
+
+Analyze your OASIS report again, this time extrapolating the previous value for each history. What is the sum of these extrapolated values?

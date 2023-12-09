@@ -64,6 +64,33 @@ impl History {
         lasts.iter().sum()
     }
 
+    fn predict_prior(&self) -> isize {
+        let mut firsts = vec![];
+
+        // need this clone to appeace the borrow checker, would love to
+        // find a way to avoid this but ultimately it's not that expensive
+        let mut data = self.data.clone();
+
+        while !has_converged(&data) {
+            let first = data.first().expect("empty series");
+            firsts.push(*first);
+
+            let mut new_data = vec![];
+            for window in data.windows(2) {
+                let a = window[0];
+                let b = window[1];
+                new_data.push(b - a);
+            }
+
+            // eprintln!("new_data: {:?}", new_data);
+            data = new_data;
+        }
+
+        // we need to start at the bottom of the stack
+        firsts.reverse();
+        firsts.into_iter().reduce(|a, b| b - a).expect("no firsts")
+    }
+
     fn parse(input: &str) -> Self {
         let data = input
             .trim()
@@ -82,6 +109,21 @@ fn has_converged(data: &Vec<isize>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn history_predict_prior() {
+        let series = History::parse("0 3 6 9 12 15");
+        let result = series.predict_prior();
+        assert_eq!(result, -3);
+
+        let series = History::parse("1 3 6 10 15 21");
+        let result = series.predict_prior();
+        assert_eq!(result, 0);
+
+        let series = History::parse("10  13  16  21  30  45");
+        let result = series.predict_prior();
+        assert_eq!(result, 5);
+    }
 
     #[test]
     fn report_predict_next_total() {
