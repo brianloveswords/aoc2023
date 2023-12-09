@@ -3,6 +3,22 @@
 use std::collections::BTreeMap;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+enum Instruction {
+    Left,
+    Right,
+}
+
+impl Instruction {
+    fn parse(s: &str) -> Self {
+        match s.trim() {
+            "L" => Self::Left,
+            "R" => Self::Right,
+            _ => panic!("invalid instruction: {s}"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 struct Id(char, char, char);
 
 impl Id {
@@ -76,6 +92,17 @@ impl Node {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn instruction_parse() {
+        let expect = Instruction::Left;
+        let result = Instruction::parse("L");
+        assert_eq!(result, expect);
+
+        let expect = Instruction::Right;
+        let result = Instruction::parse("R");
+        assert_eq!(result, expect);
+    }
 
     #[test]
     fn network_parse() {
