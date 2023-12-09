@@ -10,6 +10,11 @@ pub fn part1(input: &str) -> isize {
     report.predict_next_total()
 }
 
+pub fn part2(input: &str) -> isize {
+    let report = Report::parse(input);
+    report.predict_prior_total()
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Report {
     histories: Vec<History>,
@@ -28,6 +33,17 @@ impl Report {
     fn predict_next_total(&self) -> isize {
         self.histories.iter().map(History::predict_next).sum()
     }
+
+    fn predict_next_total_oracle(&self) -> isize {
+        self.histories
+            .iter()
+            .map(History::predict_next_oracle)
+            .sum()
+    }
+
+    fn predict_prior_total(&self) -> isize {
+        self.histories.iter().map(History::predict_prior).sum()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -41,6 +57,30 @@ impl History {
     }
 
     fn predict_next(&self) -> isize {
+        let mut lasts = vec![];
+
+        // need this clone to appeace the borrow checker, would love to
+        // find a way to avoid this but ultimately it's not that expensive
+        let mut data = self.data.clone();
+
+        while !has_converged(&data) {
+            let last = data.last().expect("empty series");
+            lasts.push(*last);
+
+            let mut new_data = vec![];
+            for window in data.windows(2) {
+                let a = window[0];
+                let b = window[1];
+                new_data.push(b - a);
+            }
+
+            // eprintln!("new_data: {:?}", new_data);
+            data = new_data;
+        }
+        lasts.iter().sum()
+    }
+
+    fn predict_next_oracle(&self) -> isize {
         let mut lasts = vec![];
 
         // need this clone to appeace the borrow checker, would love to
@@ -109,6 +149,14 @@ fn has_converged(data: &Vec<isize>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn history_predict_next_total_oracle() {
+        let x = Report::parse(REAL);
+        let expect = x.predict_next_total_oracle();
+        let result = x.predict_next_total();
+        assert_eq!(result, expect);
+    }
 
     #[test]
     fn history_predict_prior() {
