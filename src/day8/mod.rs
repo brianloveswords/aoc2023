@@ -8,6 +8,53 @@ enum Instruction {
     Right,
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct Instructions {
+    data: Vec<Instruction>,
+    index: usize,
+    steps_taken: usize,
+}
+
+impl Instructions {
+    fn parse(s: &str) -> Self {
+        Self {
+            data: Instruction::parse_all(s),
+            index: 0,
+            steps_taken: 0,
+        }
+    }
+
+    fn size(&self) -> usize {
+        self.data.len()
+    }
+
+    fn steps_taken(&self) -> usize {
+        self.steps_taken
+    }
+
+    fn step(&mut self) -> Instruction {
+        self.next().unwrap()
+    }
+}
+
+impl Iterator for Instructions {
+    type Item = Instruction;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = self.data.get(self.index).copied();
+        self.index += 1;
+        if self.index == self.data.len() {
+            self.index = 0;
+        }
+        self.steps_taken += 1;
+        debug_assert!(
+            self.steps_taken <= 1_000_000_000,
+            "probably an infinite loop"
+        );
+        result
+    }
+}
+
 impl Instruction {
     fn parse(c: char) -> Self {
         match c {
@@ -26,8 +73,16 @@ impl Instruction {
 struct Id(char, char, char);
 
 impl Id {
+    fn start_node() -> Self {
+        Self('A', 'A', 'A')
+    }
+
+    fn end_node() -> Self {
+        Self('Z', 'Z', 'Z')
+    }
+
     fn is_end(&self) -> bool {
-        self.0 == 'Z' && self.1 == 'Z' && self.2 == 'Z'
+        *self == Self::end_node()
     }
 
     fn parse(s: &str) -> Self {
@@ -52,6 +107,23 @@ impl Network {
         }
         Self(nodes)
     }
+
+    fn apply_instructions(&self, instructions: Instructions) -> usize {
+        let mut current = self.0.get(&Id::start_node()).expect("no start node");
+        for (step, instruction) in instructions.enumerate() {
+            let next_id = current.apply(instruction);
+
+            current = self
+                .0
+                .get(&next_id)
+                .expect(&format!("no next node: {next_id:?}"));
+
+            if current.is_end() {
+                return step + 1;
+            }
+        }
+        0 // instructions empty
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -68,6 +140,13 @@ impl Node {
 
     fn is_end(&self) -> bool {
         self.id.is_end()
+    }
+
+    fn apply(&self, instruction: Instruction) -> Id {
+        match instruction {
+            Instruction::Left => self.left,
+            Instruction::Right => self.right,
+        }
     }
 
     fn parse(s: &str) -> Self {
@@ -98,10 +177,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn instruction_parse_all() {
-        let expect = vec![Instruction::Left, Instruction::Right, Instruction::Left];
-        let result = Instruction::parse_all("LRL");
+    fn network_apply_instructions() {
+        let network = "
+            AAA = (BBB, BBB)
+            BBB = (AAA, ZZZ)
+            ZZZ = (ZZZ, ZZZ)
+        ";
+        let network = Network::parse(network);
+        let instructions = Instructions::parse("LLR");
+        let result = network.apply_instructions(instructions);
+        let expect = 6;
         assert_eq!(result, expect);
+    }
+
+    #[test]
+    fn instructions_parse() {
+        let mut instructions = Instructions::parse("LLR");
+
+        assert_eq!(instructions.size(), 3);
+
+        assert_eq!(instructions.step(), Instruction::Left);
+        assert_eq!(instructions.step(), Instruction::Left);
+        assert_eq!(instructions.step(), Instruction::Right);
+        assert_eq!(instructions.step(), Instruction::Left);
+        assert_eq!(instructions.step(), Instruction::Left);
+        assert_eq!(instructions.step(), Instruction::Right);
+
+        assert_eq!(instructions.steps_taken(), 6);
     }
 
     #[test]
@@ -118,9 +220,9 @@ mod tests {
     #[test]
     fn network_parse() {
         let input = "
-        AAA = (BBB, BBB)
-        BBB = (AAA, ZZZ)
-        ZZZ = (ZZZ, ZZZ)
+            AAA = (BBB, BBB)
+            BBB = (AAA, ZZZ)
+            ZZZ = (ZZZ, ZZZ)
         ";
         let expect = Network(
             vec![
