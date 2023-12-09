@@ -60,6 +60,17 @@ AAA-[L]->BBB-[L]->AAA-[R]->BBB-[L]->AAA-[L]->BBB-[R]->ZZZ
 - each step will have to run for a bunch of nodes
 - instead of checking for `ZZZ`, check that _all_ nodes end in `Z`.
 
+#### attempt #1: failed
+
+- so the naive approach isn't gonna cut it
+- let's stare at the input and think about this
+- there are 6 ghosts
+    - FSA JVA QXA KNA AAA FXA
+    - CJZ PFZ QCZ SLZ ZZZ GNZ
+- there are 281 instructions
+- ahhh writing this out made me remember math!
+    - find the individual paths to end, then find lowest common multiple
+
 ## puzzle
 
 ### part 1

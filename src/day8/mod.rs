@@ -1,12 +1,17 @@
 #![allow(dead_code)]
 
-use std::collections::BTreeMap;
+use crate::util;
+use std::{collections::BTreeMap, fmt};
 
 pub const EXAMPLE: &str = include_str!("../../inputs/examples/day8.txt");
 pub const REAL: &str = include_str!("../../inputs/real/day8.txt");
 
 pub fn part1(s: &str) -> usize {
     Map::parse(s).navigate()
+}
+
+pub fn part2(s: &str) -> usize {
+    Map::parse(s).navigate_ghosts()
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -30,6 +35,10 @@ impl Map {
     fn navigate(self) -> usize {
         self.network.apply_instructions(self.instructions)
     }
+
+    fn navigate_ghosts(self) -> usize {
+        self.network.apply_ghost_instructions(self.instructions)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -38,7 +47,7 @@ enum Instruction {
     Right,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 struct Instructions {
     data: Vec<Instruction>,
     index: usize,
@@ -54,7 +63,6 @@ impl Instructions {
         }
     }
 
-    #[cfg(test)]
     fn size(&self) -> usize {
         self.data.len()
     }
@@ -131,6 +139,13 @@ impl Id {
     }
 }
 
+impl fmt::Display for Id {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self(a, b, c) = self;
+        write!(f, "{}{}{}", a, b, c)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Network(BTreeMap<Id, Node>);
 
@@ -149,20 +164,54 @@ impl Network {
     }
 
     fn apply_instructions(&self, instructions: Instructions) -> usize {
+        let mut step = 0;
         let mut current = self.0.get(&Id::start_node()).expect("no start node");
-        for (step, instruction) in instructions.enumerate() {
+        for instruction in instructions {
+            step += 1;
             let next_id = current.apply(instruction);
 
             current = self
                 .0
                 .get(&next_id)
-                .expect(&format!("no next node: {next_id:?}"));
+                .expect(&format!("no next node: {next_id}"));
 
             if current.is_end() {
-                return step + 1;
+                break;
             }
         }
-        0 // instructions empty
+        step
+    }
+
+    fn apply_ghost_instructions(&self, instructions: Instructions) -> usize {
+        // full simulation is gonna be too slow, so we gotta use math
+        // once we figure out how many steps it is for each ghost, we can
+        // find the least common multiple of the set to figure out when
+        // they'll all be on the end node at the same time
+
+        self.ghost_start_ids()
+            .map(|id| self.0.get(id).expect(&format!("no start node: {id}")))
+            .map(|node| {
+                let mut step = 0;
+                let mut current = node;
+                let map = &self.0;
+
+                for instruction in instructions.clone() {
+                    step += 1;
+                    let next_id = current.apply(instruction);
+
+                    current = map
+                        .get(&next_id)
+                        .expect(&format!("no next node: {next_id}"));
+
+                    if current.is_ghost_end() {
+                        let end_id = current.id;
+                        println!("found end at step {end_id}, {step} steps");
+                        break;
+                    }
+                }
+                step
+            })
+            .fold(1, util::least_common_multiple)
     }
 }
 
@@ -176,6 +225,10 @@ struct Node {
 impl Node {
     fn is_end(&self) -> bool {
         self.id.is_end()
+    }
+
+    fn is_ghost_end(&self) -> bool {
+        self.id.is_ghost_end()
     }
 
     fn apply(&self, instruction: Instruction) -> Id {
@@ -214,12 +267,34 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
+    fn network_apply_ghost_instructions() {
+        let map = "
+            LR
+
+            11A = (11B, XXX)
+            11B = (XXX, 11Z)
+            11Z = (11B, XXX)
+            22A = (22B, XXX)
+            22B = (22C, 22C)
+            22C = (22Z, 22Z)
+            22Z = (22B, 22B)
+            XXX = (XXX, XXX)
+        ";
+        let map = Map::parse(map);
+        let result = map.navigate_ghosts();
+        assert_eq!(result, 6);
+    }
+
+    #[test]
     fn network_start_nodes() {
         let network = "
             11A = (11B, XXX)
-            11B = (XXX, CCC)
-            22A = (BBB, CCC)
-            22B = (AAA, CCC)
+            11B = (XXX, 11Z)
+            11Z = (11B, XXX)
+            22A = (22B, XXX)
+            22B = (22C, 22C)
+            22C = (22Z, 22Z)
+            22Z = (22B, 22B)
             XXX = (XXX, XXX)
         ";
         let network = Network::parse(network);

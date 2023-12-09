@@ -8,6 +8,21 @@ pub fn solve_quadratic(a: i32, b: i32, c: i32) -> (f64, f64) {
     (x1, x2)
 }
 
+pub fn greatest_common_factor(a: usize, b: usize) -> usize {
+    let mut a = a;
+    let mut b = b;
+    while b != 0 {
+        let t = b;
+        b = a % b;
+        a = t;
+    }
+    a
+}
+
+pub fn least_common_multiple(a: usize, b: usize) -> usize {
+    (a * b) / greatest_common_factor(a, b)
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Range {
     start: u32,
@@ -242,6 +257,16 @@ impl<'a> Parser<'a> {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+
+    #[test]
+    fn test_greatest_common_factor() {
+        assert_eq!(greatest_common_factor(12083, 20513), 281);
+    }
+
+    #[test]
+    fn test_least_common_multiple() {
+        assert_eq!(least_common_multiple(12083, 20513), 882059);
+    }
 
     prop_compose! {
         fn gen_range()(a: u32, b: u32) -> Range {
