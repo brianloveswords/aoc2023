@@ -48,13 +48,11 @@ impl History {
     }
 
     fn predict_next(&self) -> isize {
-        predict(self.data.clone(), vec![], CarryMode::Next)
-            .iter()
-            .sum()
+        predict(self.data.clone(), vec![], Mode::Next).iter().sum()
     }
 
     fn predict_prior(&self) -> isize {
-        predict(self.data.clone(), vec![], CarryMode::Prior)
+        predict(self.data.clone(), vec![], Mode::Prior)
             .into_iter()
             .reduce(|a, b| b - a)
             .expect("predict is empty")
@@ -75,16 +73,16 @@ fn has_converged(data: &Vec<isize>) -> bool {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-enum CarryMode {
+enum Mode {
     Prior,
     Next,
 }
 
-impl CarryMode {
+impl Mode {
     fn is_next(&self) -> bool {
         match self {
-            CarryMode::Prior => true,
-            CarryMode::Next => false,
+            Mode::Prior => true,
+            Mode::Next => false,
         }
     }
 
@@ -93,10 +91,10 @@ impl CarryMode {
     }
 }
 
-fn predict(data: Vec<isize>, mut carry: Vec<isize>, mode: CarryMode) -> Vec<isize> {
+fn predict(data: Vec<isize>, mut carry: Vec<isize>, mode: Mode) -> Vec<isize> {
     match mode {
-        CarryMode::Prior => carry.push(*data.first().expect("empty series")),
-        CarryMode::Next => carry.push(*data.last().expect("empty series")),
+        Mode::Prior => carry.push(*data.first().expect("empty series")),
+        Mode::Next => carry.push(*data.last().expect("empty series")),
     }
     if has_converged(&data) {
         if mode.is_next() {
@@ -105,16 +103,7 @@ fn predict(data: Vec<isize>, mut carry: Vec<isize>, mode: CarryMode) -> Vec<isiz
 
         return carry;
     }
-
-    let next = data
-        .windows(2)
-        .map(|window| {
-            let a = window[0];
-            let b = window[1];
-            b - a
-        })
-        .collect();
-
+    let next = data.windows(2).map(|x| x[1] - x[0]).collect();
     predict(next, carry, mode)
 }
 
