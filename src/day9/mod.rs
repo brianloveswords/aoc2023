@@ -105,13 +105,17 @@ fn predict(data: Vec<isize>, mut carry: Vec<isize>, mode: CarryMode) -> Vec<isiz
 
         return carry;
     }
-    let mut new_data = vec![];
-    for window in data.windows(2) {
-        let a = window[0];
-        let b = window[1];
-        new_data.push(b - a);
-    }
-    predict(new_data, carry, mode)
+
+    let next = data
+        .windows(2)
+        .map(|window| {
+            let a = window[0];
+            let b = window[1];
+            b - a
+        })
+        .collect();
+
+    predict(next, carry, mode)
 }
 
 #[cfg(test)]
