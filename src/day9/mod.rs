@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-use std::collections::HashSet;
-
 pub const EXAMPLE: &str = include_str!("../../inputs/examples/day9.txt");
 pub const REAL: &str = include_str!("../../inputs/real/day9.txt");
 
@@ -25,7 +23,7 @@ impl Report {
         Self { histories }
     }
 
-    fn parse(input: &str) -> Self {
+    pub fn parse(input: &str) -> Self {
         let histories = input.trim().split("\n").map(History::parse).collect();
         Self { histories }
     }
@@ -34,14 +32,7 @@ impl Report {
         self.histories.iter().map(History::predict_next).sum()
     }
 
-    fn predict_next_total_oracle(&self) -> isize {
-        self.histories
-            .iter()
-            .map(History::predict_next_oracle)
-            .sum()
-    }
-
-    fn predict_prior_total(&self) -> isize {
+    pub fn predict_prior_total(&self) -> isize {
         self.histories.iter().map(History::predict_prior).sum()
     }
 }
@@ -57,63 +48,19 @@ impl History {
     }
 
     fn predict_next(&self) -> isize {
-        predict(self.data.clone(), vec![], CarryMode::Last)
+        predict(self.data.clone(), vec![], CarryMode::Next)
             .iter()
             .sum()
     }
 
-    fn predict_next_oracle(&self) -> isize {
-        let mut lasts = vec![];
-
-        // need this clone to appeace the borrow checker, would love to
-        // find a way to avoid this but ultimately it's not that expensive
-        let mut data = self.data.clone();
-
-        while !has_converged(&data) {
-            let last = data.last().expect("empty series");
-            lasts.push(*last);
-
-            let mut new_data = vec![];
-            for window in data.windows(2) {
-                let a = window[0];
-                let b = window[1];
-                new_data.push(b - a);
-            }
-
-            // eprintln!("new_data: {:?}", new_data);
-            data = new_data;
-        }
-        lasts.iter().sum()
-    }
-
     fn predict_prior(&self) -> isize {
-        let mut firsts = vec![];
-
-        // need this clone to appeace the borrow checker, would love to
-        // find a way to avoid this but ultimately it's not that expensive
-        let mut data = self.data.clone();
-
-        while !has_converged(&data) {
-            let first = data.first().expect("empty series");
-            firsts.push(*first);
-
-            let mut new_data = vec![];
-            for window in data.windows(2) {
-                let a = window[0];
-                let b = window[1];
-                new_data.push(b - a);
-            }
-
-            // eprintln!("new_data: {:?}", new_data);
-            data = new_data;
-        }
-
-        // we need to start at the bottom of the stack
-        firsts.reverse();
-        firsts.into_iter().reduce(|a, b| b - a).expect("no firsts")
+        predict(self.data.clone(), vec![], CarryMode::Prior)
+            .into_iter()
+            .reduce(|a, b| b - a)
+            .expect("predict is empty")
     }
 
-    fn parse(input: &str) -> Self {
+    pub fn parse(input: &str) -> Self {
         let data = input
             .trim()
             .split_whitespace()
@@ -124,21 +71,38 @@ impl History {
 }
 
 fn has_converged(data: &Vec<isize>) -> bool {
-    let set = data.iter().collect::<HashSet<_>>();
-    set.len() == 1 && set.contains(&0)
+    !data.iter().any(|i| i != &0)
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum CarryMode {
-    First,
-    Last,
+    Prior,
+    Next,
+}
+
+impl CarryMode {
+    fn is_next(&self) -> bool {
+        match self {
+            CarryMode::Prior => true,
+            CarryMode::Next => false,
+        }
+    }
+
+    fn is_prior(&self) -> bool {
+        !self.is_next()
+    }
 }
 
 fn predict(data: Vec<isize>, mut carry: Vec<isize>, mode: CarryMode) -> Vec<isize> {
     match mode {
-        CarryMode::First => carry.push(*data.first().expect("empty series")),
-        CarryMode::Last => carry.push(*data.last().expect("empty series")),
+        CarryMode::Prior => carry.push(*data.first().expect("empty series")),
+        CarryMode::Next => carry.push(*data.last().expect("empty series")),
     }
     if has_converged(&data) {
+        if mode.is_next() {
+            carry.reverse();
+        }
+
         return carry;
     }
     let mut new_data = vec![];
@@ -153,14 +117,6 @@ fn predict(data: Vec<isize>, mut carry: Vec<isize>, mode: CarryMode) -> Vec<isiz
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn history_predict_next_total_oracle() {
-        let x = Report::parse(REAL);
-        let expect = x.predict_next_total_oracle();
-        let result = x.predict_next_total();
-        assert_eq!(result, expect);
-    }
 
     #[test]
     fn history_predict_prior() {
