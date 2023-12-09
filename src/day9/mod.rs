@@ -2,8 +2,13 @@
 
 use std::collections::HashSet;
 
-const EXAMPLE: &str = include_str!("../../inputs/examples/day9.txt");
-const REAL: &str = include_str!("../../inputs/real/day9.txt");
+pub const EXAMPLE: &str = include_str!("../../inputs/examples/day9.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day9.txt");
+
+pub fn part1(input: &str) -> isize {
+    let report = Report::parse(input);
+    report.predict_next_total()
+}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Report {
