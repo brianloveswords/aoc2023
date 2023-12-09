@@ -57,27 +57,9 @@ impl History {
     }
 
     fn predict_next(&self) -> isize {
-        let mut lasts = vec![];
-
-        // need this clone to appeace the borrow checker, would love to
-        // find a way to avoid this but ultimately it's not that expensive
-        let mut data = self.data.clone();
-
-        while !has_converged(&data) {
-            let last = data.last().expect("empty series");
-            lasts.push(*last);
-
-            let mut new_data = vec![];
-            for window in data.windows(2) {
-                let a = window[0];
-                let b = window[1];
-                new_data.push(b - a);
-            }
-
-            // eprintln!("new_data: {:?}", new_data);
-            data = new_data;
-        }
-        lasts.iter().sum()
+        predict(self.data.clone(), vec![], CarryMode::Last)
+            .iter()
+            .sum()
     }
 
     fn predict_next_oracle(&self) -> isize {
@@ -144,6 +126,28 @@ impl History {
 fn has_converged(data: &Vec<isize>) -> bool {
     let set = data.iter().collect::<HashSet<_>>();
     set.len() == 1 && set.contains(&0)
+}
+
+enum CarryMode {
+    First,
+    Last,
+}
+
+fn predict(data: Vec<isize>, mut carry: Vec<isize>, mode: CarryMode) -> Vec<isize> {
+    match mode {
+        CarryMode::First => carry.push(*data.first().expect("empty series")),
+        CarryMode::Last => carry.push(*data.last().expect("empty series")),
+    }
+    if has_converged(&data) {
+        return carry;
+    }
+    let mut new_data = vec![];
+    for window in data.windows(2) {
+        let a = window[0];
+        let b = window[1];
+        new_data.push(b - a);
+    }
+    predict(new_data, carry, mode)
 }
 
 #[cfg(test)]
