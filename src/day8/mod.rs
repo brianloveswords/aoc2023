@@ -2,6 +2,13 @@
 
 use std::collections::BTreeMap;
 
+pub const EXAMPLE: &str = include_str!("../../inputs/examples/day8.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day8.txt");
+
+pub fn part1(s: &str) -> usize {
+    Map::parse(s).navigate()
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Map {
     instructions: Instructions,
@@ -47,14 +54,12 @@ impl Instructions {
         }
     }
 
+    #[cfg(test)]
     fn size(&self) -> usize {
         self.data.len()
     }
 
-    fn steps_taken(&self) -> usize {
-        self.steps_taken
-    }
-
+    #[cfg(test)]
     fn step(&mut self) -> Instruction {
         self.next().unwrap()
     }
@@ -108,6 +113,10 @@ impl Id {
         *self == Self::end_node()
     }
 
+    fn is_ghost_end(&self) -> bool {
+        self.2 == 'Z'
+    }
+
     fn parse(s: &str) -> Self {
         let mut chars = s.trim().chars();
         let a = chars.next().unwrap();
@@ -157,10 +166,6 @@ struct Node {
 }
 
 impl Node {
-    fn new(id: Id, left: Id, right: Id) -> Self {
-        Self { id, left, right }
-    }
-
     fn is_end(&self) -> bool {
         self.id.is_end()
     }
@@ -198,6 +203,12 @@ impl Node {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn id_is_ghost_end() {
+        let id = Id('Z', 'Z', 'A');
+        assert_eq!(id.is_ghost_end(), false);
+    }
 
     #[test]
     fn map_nagivate() {
@@ -266,8 +277,6 @@ mod tests {
         assert_eq!(instructions.step(), Instruction::Left);
         assert_eq!(instructions.step(), Instruction::Left);
         assert_eq!(instructions.step(), Instruction::Right);
-
-        assert_eq!(instructions.steps_taken(), 6);
     }
 
     #[test]
