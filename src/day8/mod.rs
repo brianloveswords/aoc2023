@@ -117,6 +117,10 @@ impl Id {
         self.2 == 'Z'
     }
 
+    fn is_ghost_start(&self) -> bool {
+        self.2 == 'A'
+    }
+
     fn parse(s: &str) -> Self {
         let mut chars = s.trim().chars();
         let a = chars.next().unwrap();
@@ -138,6 +142,10 @@ impl Network {
             nodes.insert(node.id, node);
         }
         Self(nodes)
+    }
+
+    fn ghost_start_ids(&self) -> impl Iterator<Item = &Id> {
+        self.0.keys().filter(|id| id.is_ghost_start())
     }
 
     fn apply_instructions(&self, instructions: Instructions) -> usize {
@@ -203,9 +211,53 @@ impl Node {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+
+    #[test]
+    fn network_start_nodes() {
+        let network = "
+            11A = (11B, XXX)
+            11B = (XXX, CCC)
+            22A = (BBB, CCC)
+            22B = (AAA, CCC)
+            XXX = (XXX, XXX)
+        ";
+        let network = Network::parse(network);
+        assert_eq!(
+            network.ghost_start_ids().collect::<Vec<_>>(),
+            vec![&Id::parse("11A"), &Id::parse("22A")]
+        );
+    }
+
+    proptest! {
+        #[test]
+        fn id_is_ghost_start_ends_in_a(a: char, b: char) {
+            let id = Id(a, b, 'A');
+            assert_eq!(id.is_ghost_start(), true);
+
+        }
+        #[test]
+        fn id_is_ghost_end_ends_in_z(a: char, b: char) {
+            let id = Id(a, b, 'Z');
+            assert_eq!(id.is_ghost_end(), true);
+
+        }
+    }
+
+    #[test]
+    fn id_is_ghost_start() {
+        let id = Id('Z', 'Z', 'A');
+        assert_eq!(id.is_ghost_start(), true);
+
+        let id = Id('Z', 'A', 'Z');
+        assert_eq!(id.is_ghost_start(), false);
+    }
 
     #[test]
     fn id_is_ghost_end() {
+        let id = Id('J', 'J', 'Z');
+        assert_eq!(id.is_ghost_end(), true);
+
         let id = Id('Z', 'Z', 'A');
         assert_eq!(id.is_ghost_end(), false);
     }
