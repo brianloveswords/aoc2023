@@ -9,12 +9,16 @@ enum Instruction {
 }
 
 impl Instruction {
-    fn parse(s: &str) -> Self {
-        match s.trim() {
-            "L" => Self::Left,
-            "R" => Self::Right,
-            _ => panic!("invalid instruction: {s}"),
+    fn parse(c: char) -> Self {
+        match c {
+            'L' => Self::Left,
+            'R' => Self::Right,
+            _ => panic!("invalid instruction: {c}"),
         }
+    }
+
+    fn parse_all(s: &str) -> Vec<Self> {
+        s.trim().chars().map(Self::parse).collect()
     }
 }
 
@@ -94,13 +98,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn instruction_parse_all() {
+        let expect = vec![Instruction::Left, Instruction::Right, Instruction::Left];
+        let result = Instruction::parse_all("LRL");
+        assert_eq!(result, expect);
+    }
+
+    #[test]
     fn instruction_parse() {
         let expect = Instruction::Left;
-        let result = Instruction::parse("L");
+        let result = Instruction::parse('L');
         assert_eq!(result, expect);
 
         let expect = Instruction::Right;
-        let result = Instruction::parse("R");
+        let result = Instruction::parse('R');
         assert_eq!(result, expect);
     }
 
