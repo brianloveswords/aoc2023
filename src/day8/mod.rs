@@ -19,6 +19,10 @@ impl Map {
             network: Network::parse(network),
         }
     }
+
+    fn navigate(self) -> usize {
+        self.network.apply_instructions(self.instructions)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -194,6 +198,22 @@ impl Node {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn map_nagivate() {
+        let input = "
+            LLR
+
+            AAA = (BBB, BBB)
+            BBB = (AAA, ZZZ)
+            ZZZ = (ZZZ, ZZZ)
+        ";
+
+        let map = Map::parse(input);
+        let result = map.navigate();
+        let expect = 6;
+        assert_eq!(result, expect);
+    }
 
     #[test]
     fn map_parse() {
