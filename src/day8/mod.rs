@@ -2,6 +2,25 @@
 
 use std::collections::BTreeMap;
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct Map {
+    instructions: Instructions,
+    network: Network,
+}
+
+impl Map {
+    fn parse(s: &str) -> Self {
+        let (instructions, network) = s
+            .split_once("\n\n")
+            .expect("invalid input: no double blank line");
+
+        Self {
+            instructions: Instructions::parse(instructions),
+            network: Network::parse(network),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 enum Instruction {
     Left,
@@ -175,6 +194,31 @@ impl Node {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn map_parse() {
+        let input = "
+            LLR
+
+            AAA = (BBB, BBB)
+            BBB = (AAA, ZZZ)
+            ZZZ = (ZZZ, ZZZ)
+        ";
+
+        let result = Map::parse(input);
+        let expect = Map {
+            instructions: Instructions::parse("LLR"),
+            network: Network::parse(
+                "
+                AAA = (BBB, BBB)
+                BBB = (AAA, ZZZ)
+                ZZZ = (ZZZ, ZZZ)
+            ",
+            ),
+        };
+
+        assert_eq!(result, expect);
+    }
 
     #[test]
     fn network_apply_instructions() {
