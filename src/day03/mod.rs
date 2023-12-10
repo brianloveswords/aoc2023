@@ -1,8 +1,8 @@
 use crate::util::{Parser, Range};
 use std::collections::{BTreeMap, HashSet};
 
-pub const EXAMPLE: &str = include_str!("../../inputs/examples/day3.txt");
-pub const REAL: &str = include_str!("../../inputs/real/day3.txt");
+pub const EXAMPLE: &str = include_str!("../../inputs/examples/day03.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day03.txt");
 
 pub fn part1(input: &str) -> u32 {
     let mut parser = SchematicParser::new(input);

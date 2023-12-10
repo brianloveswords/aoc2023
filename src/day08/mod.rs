@@ -3,8 +3,8 @@
 use crate::util;
 use std::{collections::BTreeMap, fmt};
 
-pub const EXAMPLE: &str = include_str!("../../inputs/examples/day8.txt");
-pub const REAL: &str = include_str!("../../inputs/real/day8.txt");
+pub const EXAMPLE: &str = include_str!("../../inputs/examples/day08.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day08.txt");
 
 pub fn part1(s: &str) -> usize {
     Map::parse(s).navigate()

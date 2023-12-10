@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, collections::BTreeMap, ops::Index};
 
-pub const EXAMPLE: &str = include_str!("../../inputs/examples/day7.txt");
-pub const REAL: &str = include_str!("../../inputs/real/day7.txt");
+pub const EXAMPLE: &str = include_str!("../../inputs/examples/day07.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day07.txt");
 
 pub fn part1(s: &str) -> usize {
     CardTable::parse(s).winnings()

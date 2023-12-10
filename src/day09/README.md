@@ -55,7 +55,7 @@
 first thing I wanted to test was if recursion was competitive with the version that tracks state manually.
 
 ```
-day9::part1             time:   [1.0590 ms 1.0656 ms 1.0727 ms]
+day09::part1             time:   [1.0590 ms 1.0656 ms 1.0727 ms]
                         change: [-14.378% -12.907% -11.232%] (p = 0.00 < 0.05)
                         Performance has improved.
 ```
@@ -65,7 +65,7 @@ answer: yes! by a little. this is still slower than I would expect, though, so I
 `has_converged` is in the hot path and i never rewrote it after I decided I _did_ want to include `0` in the carry. instead of using a set we can use `iter().any()` and bail if anything is _not_ 0.
 
 ```
-day9::part2             time:   [310.12 µs 310.36 µs 310.58 µs]
+day09::part2             time:   [310.12 µs 310.36 µs 310.58 µs]
                         change: [-72.803% -72.577% -72.350%] (p = 0.00 < 0.05)
                         Performance has improved.
 ```
@@ -73,7 +73,7 @@ day9::part2             time:   [310.12 µs 310.36 µs 310.58 µs]
 not having to build that set was a big improvement. another opportunity is in `predict` where we build up the new data. making that a `.map().collect()` instead of manual bookkeeping shaves off another chunk of time
 
 ```
-day9::part2             time:   [103.87 µs 104.06 µs 104.22 µs]
+day09::part2             time:   [103.87 µs 104.06 µs 104.22 µs]
                         change: [-66.630% -66.571% -66.509%] (p = 0.00 < 0.05)
                         Performance has improved.
 ```

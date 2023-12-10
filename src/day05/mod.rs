@@ -2,8 +2,8 @@
 
 use std::ops;
 
-pub const EXAMPLE: &str = include_str!("../../inputs/examples/day5.txt");
-pub const REAL: &str = include_str!("../../inputs/real/day5.txt");
+pub const EXAMPLE: &str = include_str!("../../inputs/examples/day05.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day05.txt");
 
 pub fn part1(s: &str) -> u64 {
     let almanac = Almanac::parse(s);

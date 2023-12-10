@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet, VecDeque};
 
-pub const EXAMPLE: &str = include_str!("../../inputs/examples/day4.txt");
-pub const REAL: &str = include_str!("../../inputs/real/day4.txt");
+pub const EXAMPLE: &str = include_str!("../../inputs/examples/day04.txt");
+pub const REAL: &str = include_str!("../../inputs/real/day04.txt");
 
 pub fn part1(s: &str) -> usize {
     let winners: Vec<_> = s

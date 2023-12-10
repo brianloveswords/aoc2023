@@ -1,5 +1,5 @@
 pub fn part1() {
-    let input = include_str!("../../inputs/real/day2.txt");
+    let input = include_str!("../../inputs/real/day02.txt");
 
     let target_round = Round {
         red: 12,
@@ -26,7 +26,7 @@ pub fn part1() {
 }
 
 pub fn part2() {
-    let input = include_str!("../../inputs/real/day2.txt");
+    let input = include_str!("../../inputs/real/day02.txt");
 
     let mut total: u32 = 0;
     for line in input.lines() {

@@ -1,5 +1,5 @@
 pub fn part2() {
-    const REAL_INPUT: &str = include_str!("../../inputs/real/day1.txt");
+    const REAL_INPUT: &str = include_str!("../../inputs/real/day01.txt");
 
     let mut total = 0;
 

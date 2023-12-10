@@ -39,11 +39,11 @@ is_overlapping          time:   [3.0799 ns 3.0832 ns 3.0870 ns]
 overlapping is a part of adjacency checking, and that's a significant enough part of the workload that the change is meaningful enough in the full program that the regression is noticible there, too.
 
 ```
-day3::part1             time:   [399.80 µs 400.44 µs 401.12 µs]
+day03::part1             time:   [399.80 µs 400.44 µs 401.12 µs]
                         change: [+3.4578% +3.9077% +4.3164%] (p = 0.00 < 0.05)
                         Performance has regressed.
 
-day3::part2             time:   [226.95 µs 227.47 µs 228.07 µs]
+day03::part2             time:   [226.95 µs 227.47 µs 228.07 µs]
                         change: [+3.5294% +3.8345% +4.1292%] (p = 0.00 < 0.05)
                         Performance has regressed.
 ```

@@ -23,21 +23,21 @@ name = "range"
 harness = false
 
 [[bench]]
-name = "day3"
+name = "day03"
 harness = false
 
 [[bench]]
-name = "day4"
+name = "day04"
 harness = false
 
 [[bench]]
-name = "day6"
+name = "day06"
 harness = false
 
 [[bench]]
-name = "day7"
+name = "day07"
 harness = false
 
 [[bench]]
-name = "day9"
+name = "day09"
 harness = false
